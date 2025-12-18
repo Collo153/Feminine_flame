@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Shop Perfumes | Feminine Flame</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../static/css/product.css">
+</head>
+<body>
+
+  <header>
+    <div class="logo">
+      <img src="../../static/Images/Logo b.png" alt="Feminine Flame">
+    </div>
+    <nav>
+      <ul>
+        <li><a href="{{ url_for('home') }}">Home</a></li>
+        <li><a href="{{ url_for('products') }}">Perfumes</a></li>
+        <li><a href="#">eBooks</a></li>
+        <li><a href="#">About</a></li>
+        <li><a href="#">Contact</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <div class="container" style="padding: 2rem;">
+      <h2 style="text-align: center; margin-bottom: 2rem; color: var(--secondary);">Our Perfumes</h2>
+      
+      <div class="products-grid">
+        {% for product in products %}
+        <div class="product-card">
+          <div class="product-img" style="background: #eee; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; color: #888;">
+            {{ product.name }}
+          </div>
+          <div class="product-info">
+            <h3 class="product-title">{{ product.name }}</h3>
+            <p class="product-price">${{ "%.2f"|format(product.price) }}</p>
+            <a href="{{ url_for('product_detail', product_id=product.id) }}" class="btn" style="padding: 0.4rem 1rem; font-size: 0.9rem;">View Details</a>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 Feminine Flame. All rights reserved.</p>
+  </footer>
+
+</body>
+</html>
