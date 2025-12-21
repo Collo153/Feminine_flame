@@ -1,0 +1,229 @@
+/* admin.css */
+:root {
+  --primary: #B32E4A;
+  --secondary: #1A1A1A;
+  --background: #F9F5F0;
+  --text: #1A1A1A;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  background: var(--background);
+  color: var(--text);
+}
+
+/* === LOGIN PAGE === */
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.login-box {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  width: 350px;
+}
+
+.login-box h2 {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  color: var(--secondary);
+}
+
+.login-box input {
+  width: 100%;
+  padding: 0.75rem;
+  margin: 0.5rem 0;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+.login-box button {
+  width: 100%;
+  padding: 0.75rem;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 1rem;
+}
+
+/* === ADMIN DASHBOARD === */
+.admin-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.admin-header {
+  background: var(--secondary);
+  color: white;
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.admin-header h1 {
+  font-size: 1.4rem;
+}
+
+.btn-logout {
+  background: #888;
+  color: white;
+  padding: 0.4rem 0.8rem;
+  text-decoration: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.admin-main {
+  display: flex;
+  flex: 1;
+}
+
+.admin-sidebar {
+  width: 200px;
+  background: #f0f0f0;
+  padding: 1.5rem 0;
+}
+
+.sidebar-btn {
+  width: 100%;
+  padding: 0.8rem 1.5rem;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.sidebar-btn:hover, .sidebar-btn.active {
+  background: var(--primary);
+  color: white;
+}
+
+.admin-content {
+  flex: 1;
+  padding: 2rem;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+/* Buttons */
+.btn {
+  display: inline-block;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border: none;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+}
+
+.btn-secondary {
+  background: #666;
+  color: white;
+}
+
+.btn-edit {
+  background: #4A90E2;
+  color: white;
+}
+
+.btn-delete {
+  background: #D0021B;
+  color: white;
+}
+
+.btn:hover {
+  opacity: 0.9;
+}
+
+/* Forms */
+.form-container {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  margin-bottom: 2rem;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 0.6rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.form-group textarea {
+  height: 80px;
+}
+
+/* Table */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.data-table th,
+.data-table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.data-table th {
+  background: #f5f5f5;
+  font-weight: 600;
+}
+
+.data-table img {
+  border-radius: 4px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .admin-sidebar {
+    width: 60px;
+  }
+  .sidebar-btn span {
+    display: none;
+  }
+}
