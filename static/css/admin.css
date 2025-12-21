@@ -1,11 +1,4 @@
 /* admin.css */
-:root {
-  --primary: #B32E4A;
-  --secondary: #1A1A1A;
-  --background: #F9F5F0;
-  --text: #1A1A1A;
-}
-
 * {
   margin: 0;
   padding: 0;
@@ -13,9 +6,9 @@
 }
 
 body {
-  font-family: Arial, sans-serif;
-  background: var(--background);
-  color: var(--text);
+  font-family: 'Poppins', sans-serif;
+  background: #f8f9fa;
+  color: #333;
 }
 
 /* === LOGIN PAGE === */
@@ -23,207 +16,333 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
+  min-height: 100vh;
+  background: #f0e6ed;
 }
 
-.login-box {
+.login-card {
   background: white;
-  padding: 2rem;
+  padding: 2.5rem;
   border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  width: 350px;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
 
-.login-box h2 {
+.login-card h2 {
   text-align: center;
   margin-bottom: 1.5rem;
-  color: var(--secondary);
+  color: #c25e7d;
+  font-size: 1.5rem;
 }
 
-.login-box input {
+.login-card input {
   width: 100%;
   padding: 0.75rem;
-  margin: 0.5rem 0;
+  margin: 0.5rem 0 1rem;
   border: 1px solid #ddd;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 1rem;
 }
 
-.login-box button {
+.login-card button {
   width: 100%;
-  padding: 0.75rem;
-  background: var(--primary);
+  background: #c25e7d;
   color: white;
+  padding: 0.75rem;
   border: none;
-  border-radius: 6px;
-  font-size: 1rem;
+  border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
-  margin-top: 1rem;
+  font-size: 1rem;
+  transition: background 0.3s;
 }
 
-/* === ADMIN DASHBOARD === */
-.admin-container {
+.login-card button:hover {
+  background: #a84a6a;
+}
+
+/* === ADMIN LAYOUT === */
+.admin-layout {
   display: flex;
-  flex-direction: column;
   min-height: 100vh;
 }
 
-.admin-header {
-  background: var(--secondary);
+.sidebar {
+  width: 240px;
+  background: #2c3e50;
   color: white;
-  padding: 1rem 2rem;
+  padding: 1.5rem 1rem;
+}
+
+.sidebar .logo {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+  color: #e74c3c;
+  text-align: center;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #34495e;
+}
+
+.sidebar a {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-}
-
-.admin-header h1 {
-  font-size: 1.4rem;
-}
-
-.btn-logout {
-  background: #888;
-  color: white;
-  padding: 0.4rem 0.8rem;
+  gap: 12px;
+  color: #ecf0f1;
   text-decoration: none;
-  border-radius: 4px;
-  font-size: 0.9rem;
-}
-
-.admin-main {
-  display: flex;
-  flex: 1;
-}
-
-.admin-sidebar {
-  width: 200px;
-  background: #f0f0f0;
-  padding: 1.5rem 0;
-}
-
-.sidebar-btn {
-  width: 100%;
-  padding: 0.8rem 1.5rem;
-  background: none;
-  border: none;
-  text-align: left;
-  font-size: 1rem;
-  cursor: pointer;
+  padding: 0.8rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 0.4rem;
   transition: background 0.2s;
 }
 
-.sidebar-btn:hover, .sidebar-btn.active {
-  background: var(--primary);
-  color: white;
+.sidebar a:hover,
+.sidebar a.active {
+  background: #34495e;
 }
 
-.admin-content {
+.sidebar .logout {
+  margin-top: 2rem;
+  color: #e74c3c !important;
+  border-top: 1px solid #34495e;
+  padding-top: 1rem;
+}
+
+.main-content {
   flex: 1;
   padding: 2rem;
 }
 
-.section-header {
+.main-content h1 {
+  font-size: 1.8rem;
+  margin-bottom: 1.5rem;
+  color: #2c3e50;
+}
+
+/* === DASHBOARD STATS === */
+.stats {
+  display: flex;
+  gap: 1.5rem;
+  margin: 1.5rem 0 2rem;
+}
+
+.stat-card {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 10px;
+  text-align: center;
+  flex: 1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #eee;
+}
+
+.stat-card h3 {
+  font-size: 2rem;
+  color: #c25e7d;
+  margin-bottom: 0.5rem;
+}
+
+.stat-card p {
+  color: #7f8c8d;
+  font-size: 1rem;
+}
+
+/* === HEADERS & BUTTONS === */
+.header-actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
-/* Buttons */
-.btn {
-  display: inline-block;
-  padding: 0.4rem 0.8rem;
-  border-radius: 4px;
-  text-decoration: none;
-  font-size: 0.9rem;
-  cursor: pointer;
+.btn-add {
+  background: #27ae60;
+  color: white;
   border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: background 0.3s;
 }
 
-.btn-primary {
-  background: var(--primary);
-  color: white;
+.btn-add:hover {
+  background: #219653;
 }
 
-.btn-secondary {
-  background: #666;
-  color: white;
-}
-
-.btn-edit {
-  background: #4A90E2;
-  color: white;
-}
-
-.btn-delete {
-  background: #D0021B;
-  color: white;
-}
-
-.btn:hover {
-  opacity: 0.9;
-}
-
-/* Forms */
-.form-container {
+/* === FORMS === */
+.form-section {
   background: white;
   padding: 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  border-radius: 10px;
   margin-bottom: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .form-group {
-  margin-bottom: 1rem;
+  margin-bottom: 1.2rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-weight: 600;
+  color: #2c3e50;
 }
 
 .form-group input,
-.form-group textarea,
-.form-group select {
+.form-group textarea {
   width: 100%;
   padding: 0.6rem;
   border: 1px solid #ddd;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 1rem;
 }
 
 .form-group textarea {
-  height: 80px;
+  height: 100px;
+  resize: vertical;
 }
 
-/* Table */
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: white;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-}
-
-.data-table th,
-.data-table td {
-  padding: 1rem;
-  text-align: left;
-  border-bottom: 1px solid #eee;
-}
-
-.data-table th {
-  background: #f5f5f5;
+.btn-submit {
+  background: #c25e7d;
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  cursor: pointer;
   font-weight: 600;
+  font-size: 1rem;
+  transition: background 0.3s;
 }
 
-.data-table img {
-  border-radius: 4px;
+.btn-submit:hover {
+  background: #a84a6a;
 }
 
-/* Responsive */
+.btn-cancel {
+  background: #bdc3c7;
+  color: #2c3e50;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  margin-left: 0.5rem;
+  transition: background 0.3s;
+}
+
+.btn-cancel:hover {
+  background: #95a5a6;
+}
+
+/* === LISTS === */
+.items-list,
+.recent-list {
+  background: white;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #eee;
+}
+
+.item-card,
+.list-item {
+  padding: 1.2rem;
+  border-bottom: 1px solid #f1f1f1;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.item-card:last-child,
+.list-item:last-child {
+  border-bottom: none;
+}
+
+.item-actions {
+  display: flex;
+  gap: 0.8rem;
+  align-items: flex-start;
+}
+
+.btn-delete {
+  color: #e74c3c;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: color 0.2s;
+}
+
+.btn-delete:hover {
+  color: #c0392b;
+  text-decoration: underline;
+}
+
+/* === RESPONSIVE DESIGN === */
 @media (max-width: 768px) {
-  .admin-sidebar {
-    width: 60px;
+  .admin-layout {
+    flex-direction: column;
   }
-  .sidebar-btn span {
-    display: none;
+
+  .sidebar {
+    width: 100%;
+    height: auto;
   }
+
+  .stats {
+    flex-direction: column;
+  }
+
+  .header-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .item-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .main-content {
+    padding: 1.5rem;
+  }
+
+  .sidebar .logo {
+    font-size: 1.1rem;
+  }
+}
+
+.btn-done {
+  background: #27ae60;
+  color: white;
+  border: none;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  margin-top: 0.4rem;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.btn-done:hover {
+  background: #219653;
+}
+
+.btn-edit {
+  color: #3498db;
+  text-decoration: none;
+  font-weight: 600;
+  margin-right: 0.8rem;
+}
+
+.btn-edit:hover {
+  color: #2980b9;
+  text-decoration: underline;
 }

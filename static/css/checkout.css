@@ -1,0 +1,87 @@
+/* checkout.css */
+
+.checkout-container {
+  max-width: 600px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.form-group {
+  margin-bottom: 1.2rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-weight: 600;
+  color: var(--secondary);
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 0.6rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+.btn-checkout {
+  width: 100%;
+  padding: 0.9rem;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 30px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 1rem;
+  transition: background 0.3s ease;
+}
+
+.btn-checkout:hover {
+  background: #9a263e;
+}
+
+/* M-Pesa Info Box */
+.mpesa-info {
+  background: #f0f8f0;
+  padding: 1rem;
+  border-left: 4px solid #2e7d32;
+  margin-top: 1rem;
+  border-radius: 8px;
+  display: none;
+}
+
+.mpesa-info.show {
+  display: block;
+}
+
+
+/* UK Info Box */
+.uk-info {
+  background: #f0f8ff;
+  padding: 1rem;
+  border-left: 4px solid #3b82f6;
+  margin-top: 1rem;
+  border-radius: 8px;
+  display: none;
+}
+
+.uk-info.show {
+  display: block;
+}
+
+/* Optional: Responsive padding */
+@media (max-width: 600px) {
+  .checkout-container {
+    padding: 1.5rem;
+    margin: 1rem;
+  }
+}

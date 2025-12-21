@@ -3,51 +3,90 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Shop Perfumes | Feminine Flame</title>
+  <title>Perfumes | Feminine Flame</title>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../../static/css/product.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    .products-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+    .product-card {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      transition: transform 0.3s;
+    }
+    .product-card:hover {
+      transform: translateY(-5px);
+    }
+    .product-img {
+      width: 100%;
+      height: 250px;
+      object-fit: cover;
+    }
+    .product-info {
+      padding: 1.2rem;
+    }
+    .product-info h3 {
+      margin-bottom: 0.5rem;
+      color: var(--primary);
+    }
+    .price {
+      font-weight: 700;
+      color: #c25e7d;
+      font-size: 1.2rem;
+    }
+    .btn {
+      display: inline-block;
+      background: var(--primary);
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 30px;
+      text-decoration: none;
+      margin-top: 0.8rem;
+    }
+  </style>
 </head>
 <body>
-
   <header>
     <div class="logo">
-      <img src="../../static/Images/Logo b.png" alt="Feminine Flame">
+      <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Feminine Flame">
     </div>
     <nav>
       <ul>
         <li><a href="{{ url_for('home') }}">Home</a></li>
         <li><a href="{{ url_for('products') }}">Perfumes</a></li>
-        <li><a href="#">eBooks</a></li>
-        <li><a href="#">About</a></li>
-        <li><a href="#">Contact</a></li>
+        <li><a href="{{ url_for('cart') }}">Cart</a></li>
       </ul>
     </nav>
   </header>
 
-  <main>
-    <div class="container" style="padding: 2rem;">
-      <h2 style="text-align: center; margin-bottom: 2rem; color: var(--secondary);">Our Perfumes</h2>
-      
-      <div class="products-grid">
-        {% for product in products %}
-        <div class="product-card">
-          <div class="product-img" style="background: #eee; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; color: #888;">
-            {{ product.name }}
+  <main class="container">
+    <h1>Our Signature Perfumes</h1>
+    <div class="products-grid">
+      {% for product in products %}
+      <div class="product-card">
+        {% if product.image_url %}
+          <img src="{{ url_for('static', filename='uploads/' + product.image_url) }}" 
+               alt="{{ product.name }}" class="product-img">
+        {% else %}
+          <div style="height: 250px; background: #f5f5f5; display: flex; align-items: center; justify-content: center; color: #999;">
+            No Image
           </div>
-          <div class="product-info">
-            <h3 class="product-title">{{ product.name }}</h3>
-            <p class="product-price">${{ "%.2f"|format(product.price) }}</p>
-            <a href="{{ url_for('product_detail', product_id=product.id) }}" class="btn" style="padding: 0.4rem 1rem; font-size: 0.9rem;">View Details</a>
-          </div>
+        {% endif %}
+        <div class="product-info">
+          <h3>{{ product.name }}</h3>
+          <p>{{ product.description[:100] }}...</p>
+          <div class="price">KES {{ "%.2f"|format(product.price) }}</div>
+          <a href="{{ url_for('product_detail', product_id=product.id) }}" class="btn">View Details</a>
         </div>
-        {% endfor %}
       </div>
+      {% endfor %}
     </div>
   </main>
-
-  <footer>
-    <p>&copy; 2025 Feminine Flame. All rights reserved.</p>
-  </footer>
-
 </body>
 </html>

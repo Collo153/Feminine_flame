@@ -6,47 +6,7 @@
   <title>Checkout | Feminine Flame</title>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-  <style>
-    .checkout-container {
-      max-width: 600px;
-      margin: 2rem auto;
-      padding: 2rem;
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-    }
-    .form-group {
-      margin-bottom: 1.2rem;
-    }
-    .form-group label {
-      display: block;
-      margin-bottom: 0.4rem;
-      font-weight: 600;
-      color: var(--secondary);
-    }
-    .form-group input, .form-group select, .form-group textarea {
-      width: 100%;
-      padding: 0.6rem;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      font-size: 1rem;
-    }
-    .btn-checkout {
-      width: 100%;
-      padding: 0.9rem;
-      background: var(--primary);
-      color: white;
-      border: none;
-      border-radius: 30px;
-      font-size: 1.1rem;
-      font-weight: 600;
-      cursor: pointer;
-      margin-top: 1rem;
-    }
-    .btn-checkout:hover {
-      background: #9a263e;
-    }
-  </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/checkout.css') }}">
 </head>
 <body>
 
@@ -65,7 +25,7 @@
 
   <main>
     <div class="checkout-container">
-      <h1 style="text-align: center; margin-bottom: 1.5rem;">Complete Your Order</h1>
+      <h1>Complete Your Order</h1>
       
       <form method="POST">
         <div class="form-group">
@@ -74,21 +34,36 @@
         </div>
 
         <div class="form-group">
+          <label for="country">Country</label>
+          <select id="country" name="country" required>
+            <option value="">Select Country</option>
+            <option value="Kenya">Kenya</option>
+            <option value="UK">United Kingdom</option>
+          </select>
+        </div>
+
+        <div class="form-group">
           <label for="phone">Phone Number</label>
-          <input type="tel" id="phone" name="phone" placeholder="+2547..." required>
+          <input type="tel" id="phone" name="phone" placeholder="e.g. +254712345678" required>
         </div>
 
         <div class="form-group">
           <label for="address">Delivery Address</label>
-          <textarea id="address" name="address" rows="3" required></textarea>
+          <textarea id="address" name="address" rows="3" placeholder="Street, City, Postal Code" required></textarea>
         </div>
 
-        <div class="form-group">
-          <label for="payment">Payment Method</label>
-          <select id="payment" name="payment_method">
-            <option value="mpesa">M-Pesa</option>
-            <option value="cash">Cash on Delivery</option>
-          </select>
+        <!-- M-Pesa Info (Kenya) -->
+        <div id="mpesa-info" class="mpesa-info">
+          <strong>🇰🇪 Kenyan Customers:</strong><br>
+          After placing your order, you’ll receive an <strong>M-Pesa prompt</strong> on your phone to complete payment securely.
+        </div>
+
+        <!-- UK Info -->
+        <div id="uk-info" class="uk-info">
+          <strong>🇬🇧 UK Customers:</strong><br>
+          After placing your order, contact us directly at<br>
+          <strong>+44 7301 623591</strong><br>
+          to arrange payment and delivery.
         </div>
 
         <button type="submit" class="btn-checkout">Place Order</button>
@@ -96,5 +71,25 @@
     </div>
   </main>
 
+  <script>
+    const countrySelect = document.getElementById('country');
+    const mpesaInfo = document.getElementById('mpesa-info');
+    const ukInfo = document.getElementById('uk-info');
+
+    function updatePaymentInfo() {
+      mpesaInfo.classList.remove('show');
+      ukInfo.classList.remove('show');
+
+      if (countrySelect.value === 'Kenya') {
+        mpesaInfo.classList.add('show');
+      } else if (countrySelect.value === 'UK') {
+        ukInfo.classList.add('show');
+      }
+    }
+
+    countrySelect.addEventListener('change', updatePaymentInfo);
+    // Initialize on load (in case page reloaded with pre-filled value)
+    updatePaymentInfo();
+  </script>
 </body>
 </html>
