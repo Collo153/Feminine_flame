@@ -61,6 +61,7 @@
           <div class="list-item">
             <strong>{{ order.customer_name }}</strong> • KES {{ "%.2f"|format(order.total) }}<br>
             <small>{{ order.phone }} • {{ order.country }}</small>
+            {% if order.email %}<br><small>Email: {{ order.email }}</small>{% endif %}
           </div>
           {% endfor %}
         </div>
@@ -73,6 +74,7 @@
           {% endif %}
         </div>
 
+        <!-- ADD/EDIT FORM -->
         <div id="add-form" class="form-section" {% if not edit_product %}style="display:none;"{% endif %}>
           <form method="POST" enctype="multipart/form-data">
             {% if edit_product %}
@@ -87,23 +89,38 @@
               <textarea name="description" required>{{ edit_product.description if edit_product else '' }}</textarea>
             </div>
             <div class="form-group">
+              <label>Category</label>
+              <select name="category" id="category-select" required>
+                <option value="perfume" {% if edit_product and edit_product.category == 'perfume' %}selected{% endif %}>Perfume</option>
+                <option value="ebook" {% if edit_product and edit_product.category == 'ebook' %}selected{% endif %}>eBook</option>
+              </select>
+            </div>
+            <div class="form-group">
               <label>Price (KES)</label>
               <input type="number" step="0.01" name="price" value="{{ edit_product.price if edit_product else '' }}" required>
             </div>
             <div class="form-group">
-              <label>Stock</label>
-              <input type="number" name="stock" value="{{ edit_product.stock if edit_product else '10' }}" required>
+              <label id="stock-label">Stock</label>
+              <input type="number" name="stock" 
+                     value="{{ edit_product.stock if edit_product and edit_product.stock >= 0 else '10' }}"
+                     {% if edit_product and edit_product.category == 'ebook' %}disabled{% endif %}
+                     required>
+              <small id="stock-note">eBooks have unlimited stock</small>
             </div>
             <div class="form-group">
-              <label>Product Image</label>
+              <label id="file-label">Product Image</label>
               {% if edit_product and edit_product.image_url %}
-                <div class="current-image">
-                  <img src="{{ url_for('static', filename='uploads/' + edit_product.image_url) }}" 
-                       alt="Current" style="max-height: 100px; margin: 0.5rem 0; border-radius: 4px;">
+                <div class="current-file">
+                  {% if edit_product.image_url.endswith(('.pdf', '.epub', '.mobi')) %}
+                    <p>📄 Current eBook: <strong>{{ edit_product.image_url.split('/')[-1] }}</strong></p>
+                  {% else %}
+                    <img src="{{ url_for('static', filename='uploads/' + edit_product.image_url) }}" 
+                         alt="Current" style="max-height: 100px; border-radius: 4px;">
+                  {% endif %}
                 </div>
               {% endif %}
-              <input type="file" name="image" accept="image/*">
-              <small>Leave empty to keep current image</small>
+              <input type="file" name="image" id="file-input" accept="image/*,.pdf,.epub,.mobi">
+              <small id="file-help">For eBooks: Upload PDF/EPUB. For Perfumes: Upload JPG/PNG.</small>
             </div>
             <button type="submit" class="btn-submit">
               {% if edit_product %}Update Product{% else %}Add Product{% endif %}
@@ -116,18 +133,24 @@
           </form>
         </div>
 
+        <!-- PRODUCT LIST -->
         {% if not edit_product %}
           <h2>All Products</h2>
           <div class="items-list">
             {% for p in products %}
             <div class="item-card">
               {% if p.image_url %}
-                <img src="{{ url_for('static', filename='uploads/' + p.image_url) }}" 
-                     alt="{{ p.name }}" style="height: 60px; object-fit: cover; margin-bottom: 0.5rem; border-radius: 4px;">
+                {% if p.image_url.endswith(('.pdf', '.epub', '.mobi')) %}
+                  <div class="file-icon">📄</div>
+                {% else %}
+                  <img src="{{ url_for('static', filename='uploads/' + p.image_url) }}" 
+                       alt="{{ p.name }}" style="height: 60px; object-fit: cover; border-radius: 4px; margin-bottom: 0.5rem;">
+                {% endif %}
               {% endif %}
               <div>
                 <strong>{{ p.name }}</strong><br>
-                KES {{ "%.2f"|format(p.price) }} • Stock: {{ p.stock }}
+                <span class="category-badge {{ p.category }}">{{ p.category|title }}</span><br>
+                KES {{ "%.2f"|format(p.price) }} • Stock: {{ p.stock if p.stock >= 0 else '∞' }}
               </div>
               <div class="item-actions">
                 <a href="{{ url_for('admin', tab='products', edit=p._id) }}" class="btn-edit">Edit</a>
@@ -149,6 +172,7 @@
               <small>{{ o.phone }} • {{ o.country }}</small><br>
               <em>{{ o.address }}</em><br>
               Total: <strong>KES {{ "%.2f"|format(o.total) }}</strong>
+              {% if o.email %}<br><small>Email: {{ o.email }}</small>{% endif %}
             </div>
             <div>
               Status: <strong>
@@ -173,5 +197,77 @@
     </main>
   </div>
   {% endif %}
+
+  <script>
+    // Dynamic form behavior
+    function updateForm() {
+      const category = document.getElementById('category-select')?.value;
+      if (!category) return;
+      
+      const isEbook = category === 'ebook';
+      document.getElementById('stock-label').textContent = isEbook ? 'Stock (ignored)' : 'Stock';
+      document.getElementById('file-label').textContent = isEbook ? 'eBook File (PDF/EPUB)' : 'Product Image';
+      
+      const fileInput = document.getElementById('file-input');
+      if (fileInput) {
+        fileInput.accept = isEbook ? '.pdf,.epub,.mobi' : 'image/*';
+      }
+      
+      const stockInput = document.querySelector('input[name="stock"]');
+      const stockNote = document.getElementById('stock-note');
+      if (stockInput) {
+        stockInput.disabled = isEbook;
+        stockNote.style.display = isEbook ? 'block' : 'none';
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      const categorySelect = document.getElementById('category-select');
+      if (categorySelect) {
+        categorySelect.addEventListener('change', updateForm);
+        updateForm();
+      }
+    });
+  </script>
+
+  <style>
+    .file-icon {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f0f8ff;
+      width: 60px;
+      height: 60px;
+      border-radius: 8px;
+    }
+    .category-badge {
+      display: inline-block;
+      padding: 0.1rem 0.5rem;
+      border-radius: 10px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin: 0.2rem 0;
+    }
+    .category-badge.perfume { background: #e1f0fa; color: #2980b9; }
+    .category-badge.ebook { background: #e8f5e9; color: #27ae60; }
+    #stock-note {
+      display: none;
+      font-size: 0.85rem;
+      color: #7f8c8d;
+      margin-top: 0.25rem;
+    }
+    .current-file {
+      margin: 0.5rem 0;
+      padding: 0.5rem;
+      background: #f8f9fa;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+    .current-file strong {
+      color: #2c3e50;
+    }
+  </style>
 </body>
 </html>

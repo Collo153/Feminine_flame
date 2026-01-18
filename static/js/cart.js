@@ -1,22 +1,44 @@
 // =============== ADD TO CART ===============
-function addToCart(productId, name, price, quantity = 1) {
-  let cart = JSON.parse(localStorage.getItem('cart')) || [];
-
-  // Ensure types
-  productId = parseInt(productId);
-  price = parseFloat(price);
-  quantity = parseInt(quantity) || 1;
-
-  const existing = cart.find(item => item.id === productId);
-  if (existing) {
-    existing.quantity += quantity;
-  } else {
-    cart.push({ id: productId, name, price, quantity });
-  }
-
-  localStorage.setItem('cart', JSON.stringify(cart));
-  alert(`${name} added to cart!`);
+function addToCart(productId, name, price, imageUrl) {
+    let cart = JSON.parse(localStorage.getItem('cart')) || [];
+    const existing = cart.find(item => item.id === productId);
+    
+    if (existing) {
+        existing.quantity += 1;
+    } else {
+        cart.push({
+            id: productId,
+            name: name,
+            price: price,
+            quantity: 1,
+            image_url: imageUrl || ''
+        });
+    }
+    
+    localStorage.setItem('cart', JSON.stringify(cart));
+    
+    // Sync with Flask session
+    fetch('/sync-cart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cart: cart })
+    }).then(() => {
+        alert('Added to cart!');
+    });
 }
+    
+    // Save to localStorage
+    localStorage.setItem('cart', JSON.stringify(cart));
+    
+    // Sync with Flask session (optional but recommended)
+    fetch('/sync-cart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cart: cart })
+    });
+    
+    alert('Added to cart!');
+
 
 // =============== RENDER CART ===============
 function renderCart() {

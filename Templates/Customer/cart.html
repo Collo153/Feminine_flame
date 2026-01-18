@@ -2,112 +2,223 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name=".viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Shopping Cart | Feminine Flame</title>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/cart.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    .cart-container {
+      max-width: 800px;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+    }
+    .page-title {
+      text-align: center;
+      margin-bottom: 2rem;
+      color: var(--secondary);
+    }
+    .cart-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 0;
+      border-bottom: 1px solid #eee;
+    }
+    .item-details {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+    .item-image {
+      width: 60px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 8px;
+      background: #f0f0f0;
+    }
+    .cart-total {
+      text-align: right;
+      font-size: 1.2rem;
+      font-weight: bold;
+      margin: 1.5rem 0;
+      color: var(--primary);
+    }
+    .empty-cart {
+      text-align: center;
+      padding: 3rem;
+      color: #777;
+    }
+    .btn {
+      display: inline-block;
+      background: var(--primary);
+      color: white;
+      padding: 0.75rem 2rem;
+      border-radius: 30px;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    .btn:hover {
+      background: #9a263e;
+    }
+  </style>
 </head>
 <body>
 
   <header>
     <div class="logo">
-      <img src="{{ url_for('static', filename='images/logo.png') }}">
+      <img src="{{ url_for('static', filename='images/Logo b.png') }}" alt="Feminine Flame">
     </div>
     <nav>
       <ul>
-        <li><a href="{{ url_for('home') }}">Home</a></li>
-        <li><a href="{{ url_for('products') }}">Perfumes</a></li>
-        <li><a href="#">eBooks</a></li>
-        <li><a href="#">About</a></li>
-        <li><a href="#">Contact</a></li>
+        <li><a href="/">Home</a></li>
+        <li><a href="/">Perfumes</a></li>
+        <li><a href="/">eBooks</a></li>
+        <li><a href="/">About</a></li>
+        <li><a href="/">Contact</a></li>
       </ul>
     </nav>
   </header>
 
   <main>
     <div class="cart-container">
-      <h1 class="page-title">Your Cart</h1>
+      <h1 class="page-title">Your Shopping Cart</h1>
 
-      <div id="cart-content">
-        <!-- Cart items will be loaded here by JavaScript -->
+      {% if cart %}
+  <div id="cart-content">
+    {% for item in cart %}
+    <div class="cart-item" data-id="{{ item.id }}">
+      <div class="item-details">
+        <!-- Product Image (if available) -->
+        {% if item.image_url %}
+          <img src="{{ url_for('static', filename='uploads/' + item.image_url) }}" 
+               alt="{{ item.name }}" class="item-image">
+        {% else %}
+          <div class="item-image-placeholder"></div>
+        {% endif %}
+        
+        <div>
+          <h3>{{ item.name }}</h3>
+          <p>KES {{ "%.2f"|format(item.price) }}</p>
+          
+          <!-- Quantity Controls -->
+          <div class="item-quantity">
+            <button class="quantity-btn minus" onclick="updateQuantity('{{ item.id }}', -1)">-</button>
+            <span>{{ item.quantity }}</span>
+            <button class="quantity-btn plus" onclick="updateQuantity('{{ item.id }}', 1)">+</button>
+          </div>
+        </div>
       </div>
+      
+      <div class="item-actions">
+        <!-- Single Product Checkout -->
+        <a href="/checkout?product_id={{ item.id }}" class="btn-buy-single">Buy Now</a>
+        
+        <!-- Remove Item -->
+        <button class="btn-remove" onclick="removeItem('{{ item.id }}')">Remove</button>
+        
+        <!-- Total for this item -->
+        <p class="item-total">KES {{ "%.2f"|format(item.price * item.quantity) }}</p>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  
+  <div class="cart-summary">
+    <div class="cart-total">
+      Total: KES {{ "%.2f"|format(total) }}
+    </div>
+    <a href="/checkout" class="btn">Proceed to Checkout</a>
+  </div>
+{% else %}
+  <!-- empty cart -->
+{% endif %}
     </div>
   </main>
 
- <footer class="site-footer">
-  <div class="footer-container">
-    
-    <!-- Column 1: Brand & Description -->
-    <div class="footer-col">
-      <img src="{{ url_for('static', filename='images/Logo.JPG') }}" alt="Feminine Flame" class="footer-logo">
-      <p class="footer-desc">
-        Curating luxury perfumes and soulful stories for the modern woman who dares to leave a trail.
-      </p>
+  <footer class="site-footer">
+    <div class="footer-container">
+      <div class="footer-col">
+        <img src="{{ url_for('static', filename='images/Logo.JPG') }}" alt="Feminine Flame" class="footer-logo">
+        <p class="footer-desc">
+          Curating luxury perfumes and soulful stories for the modern woman who dares to leave a trail.
+        </p>
+      </div>
+      <div class="footer-col">
+        <h3>Shop</h3>
+        <ul>
+          <li><a href="/">Perfumes</a></li>
+          <li><a href="/">eBooks</a></li>
+          <li><a href="/">New Arrivals</a></li>
+          <li><a href="/">Best Sellers</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h3>Contact Us</h3>
+        <ul class="contact-info">
+          <li>📧 feminineflame19@gmail.com</li>
+          <li>📱 +447 301 623 591</li>
+          <li>📍 Nairobi, Kenya</li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h3>Follow Us</h3>
+        <div class="social-links">
+          <a href="https://instagram.com/your_instagram" target="_blank" class="social-link" aria-label="Instagram">
+            <i class="fab fa-instagram"></i>
+          </a>
+          <a href="https://facebook.com/your_facebook" target="_blank" class="social-link" aria-label="Facebook">
+            <i class="fab fa-facebook-f"></i>
+          </a>
+          <a href="mailto:kipkenycollo@gmail.com" class="social-link" aria-label="Email">
+            <i class="fas fa-envelope"></i>
+          </a>
+          <a href="https://wa.me/254742954960" target="_blank" class="social-link" aria-label="WhatsApp">
+            <i class="fab fa-whatsapp"></i>
+          </a>
+        </div>
+        <p class="social-desc">Stay inspired with our latest drops.</p>
+      </div>
     </div>
-
-    <!-- Column 2: Quick Links -->
-    <div class="footer-col">
-      <h3>Shop</h3>
-      <ul>
-       <li><a href="{{ url_for('products') }}">Perfumes</a></li>
-        <li><a href="#">eBooks</a></li>
-        <li><a href="#">New Arrivals</a></li>
-        <li><a href="#">Best Sellers</a></li>
-      </ul>
+    <div class="footer-bottom">
+      <p>&copy; 2025 Feminine Flame. All rights reserved.</p>
     </div>
+  </footer>
 
-    <!-- Column 3: Contact Info -->
-    <div class="footer-col">
-      <h3>Contact Us</h3>
-      <ul class="contact-info">
-        <li>📧 feminineflame19@gmail.com</li>
-        <li>📱 +447 301 623 591</li>
-        <li>📍 Nairobi, Kenya</li>
-      </ul>
-    </div>
-
-    <!-- Column 4: Social Media -->
-<div class="footer-col">
-  <h3>Follow Us</h3>
-  <div class="social-links">
-    <!-- Instagram -->
-    <a href="https://instagram.com/your_instagram" target="_blank" aria-label="Instagram" class="social-link">
-      <i class="fab fa-instagram"></i>
-    </a>
-    
-    <!-- Facebook -->
-    <a href="https://facebook.com/your_facebook" target="_blank" aria-label="Facebook" class="social-link">
-      <i class="fab fa-facebook-f"></i>
-    </a>
-    
-    <!-- Email -->
-    <a href="mailto:kipkenycollo@gmail.com" aria-label="Email" class="social-link">
-      <i class="fas fa-envelope"></i>
-    </a>
-    
-    <!-- WhatsApp -->
-    <a href="https://wa.me/254742954960" target="_blank" aria-label="WhatsApp" class="social-link">
-      <i class="fab fa-whatsapp"></i>
-    </a>
-  </div>
-  <p class="social-desc">Stay inspired with our latest drops.</p>
-</div>
-
-  </div>
-
-  <div class="footer-bottom">
-    <p>&copy; 2025 Feminine Flame. All rights reserved. Crafted with passion.</p>
-  </div>
-</footer>
-
-  <script src="{{ url_for('static', filename='js/cart.js') }}"></script>
   <script>
-    // Render cart on page load
-    document.addEventListener('DOMContentLoaded', function() {
-    if (typeof renderCart === 'function') {
-      renderCart();
+  // Update quantity
+  function updateQuantity(productId, change) {
+    fetch('/update-cart', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product_id: productId, change: change })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        location.reload(); // Refresh to show updated cart
+      }
+    })
+    .catch(error => console.error('Error:', error));
+  }
+
+  // Remove item
+  function removeItem(productId) {
+    if (confirm('Remove this item from cart?')) {
+      fetch('/remove-from-cart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product_id: productId })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          location.reload();
+        }
+      })
+      .catch(error => console.error('Error:', error));
     }
-  });
-  </script>
+  }
+</script>
+
 </body>
 </html>
