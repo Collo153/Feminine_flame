@@ -52,8 +52,28 @@
         </div>
 
         <div class="form-group">
-          <label for="email">Email Address (Optional)</label>
-          <input type="email" id="email" name="email" placeholder="you@example.com">
+          {% set ns = namespace(has_ebooks=false) %}
+          {% for item in cart %}
+            {% if item.category == 'ebook' %}
+              {% set ns.has_ebooks = true %}
+            {% endif %}
+          {% endfor %}
+
+          <label for="email">
+            Email Address {% if ns.has_ebooks %}(Required for eBooks){% else %}(Optional){% endif %}
+          </label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            placeholder="you@example.com"
+            {% if ns.has_ebooks %}required{% endif %}
+          >
+          {% if ns.has_ebooks %}
+            <small style="display:block;margin-top:6px;color:#666;">
+              We use your email to unlock your ebook download after payment.
+            </small>
+          {% endif %}
         </div>
 
         <div class="form-group">
@@ -62,17 +82,18 @@
         </div>
 
         <!-- Payment Instructions -->
-        <div id="payment-instructions">
-          <div id="uk-info" class="uk-info">
-            <strong>🇬🇧 UK Customers:</strong><br>
-            After placing your order, you'll be redirected to our <strong>secure Stripe payment page</strong> to complete your GBP (£) payment.
-          </div>
+<div id="payment-instructions">
+  <div id="uk-info" class="uk-info">
+    <strong>🇬🇧 UK Customers:</strong><br>
+    After placing your order, you'll be redirected to our <strong>secure Stripe payment page</strong> to complete your GBP (£) payment.
+  </div>
 
-          <div id="mpesa-info" class="mpesa-info">
-            <strong>🇰🇪 Kenyan Customers:</strong><br>
-            After placing your order, you'll receive an <strong>M-Pesa prompt</strong> on your phone to complete payment securely in KES.
-          </div>
-        </div>
+  <div id="mpesa-info" class="mpesa-info">
+    <strong>🇰🇪 Kenyan Customers:</strong><br>
+    Please send your payment via <strong>M-Pesa to: <span style="color: #c25e7d; font-weight: bold;">0715072834</span></strong>.<br>
+    Include your name and order details in the message. We’ll confirm once received!
+  </div>
+</div>
 
         <button type="submit" class="btn-checkout">Place Order</button>
       </form>

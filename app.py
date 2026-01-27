@@ -1,17 +1,17 @@
-from flask import Flask,request, jsonify, render_template, request, redirect, url_for, session, current_app
+from flask import Flask, request, jsonify, render_template, redirect, url_for, session, send_file
 from pymongo import MongoClient
 import os
 from dotenv import load_dotenv
-from datetime import datetime 
+from datetime import datetime, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
 from bson import ObjectId
 import uuid
 from werkzeug.utils import secure_filename
 from flask_mail import Mail, Message
-from bson.errors import InvalidId
 import stripe
 import ssl
-
+import io
+from cryptography.fernet import Fernet # type: ignore
 
 # Load environment variables
 load_dotenv()
@@ -21,10 +21,21 @@ stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 endpoint_secret = os.getenv('STRIPE_WEBHOOK_SECRET')
 stripe_pub_key = os.getenv("STRIPE_PUBLISHABLE_KEY")
 
+# === EBOOK ENCRYPTION KEY ===
+EBOOK_ENCRYPTION_KEY = os.getenv("EBOOK_ENCRYPTION_KEY")
+if not EBOOK_ENCRYPTION_KEY:
+    # Generate a new key if not exists (store this in .env for production)
+    EBOOK_ENCRYPTION_KEY = Fernet.generate_key().decode()
+    print(f"⚠️  NEW ENCRYPTION KEY GENERATED: {EBOOK_ENCRYPTION_KEY}")
+    print("⚠️  Add this to your .env file as EBOOK_ENCRYPTION_KEY")
+
+cipher = Fernet(EBOOK_ENCRYPTION_KEY.encode())
+
 # === UTILITY: Make MongoDB docs JSON-safe ===
 def serialize_doc(doc):
     """Convert MongoDB document to JSON-serializable dict"""
-    doc['_id'] = str(doc['_id'])
+    if '_id' in doc:
+        doc['_id'] = str(doc['_id'])
     return doc
 
 # Initialize Flask app
@@ -42,31 +53,30 @@ mail = Mail(app)
 
 # === IMAGE/EBOOK UPLOAD CONFIG ===
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'epub', 'mobi'}
+ALLOWED_EBOOK_EXTENSIONS = {'pdf', 'epub', 'mobi'}
 UPLOAD_FOLDER = os.path.join('static', 'uploads')
+EBOOK_FOLDER = os.path.join('protected_ebooks')  # Encrypted ebooks stored separately
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
+app.config['EBOOK_FOLDER'] = EBOOK_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max for ebooks
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(os.path.join(UPLOAD_FOLDER, 'ebooks'), exist_ok=True)
+os.makedirs(EBOOK_FOLDER, exist_ok=True)
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# === MONGODB CONNECTION (CORRECT SSL CONFIG FOR ATLAS) ===
-MONGO_URI = os.getenv("MONGO_URI")
+def allowed_ebook_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EBOOK_EXTENSIONS
 
+# === MONGODB CONNECTION ===
+MONGO_URI = os.getenv("MONGO_URI")
 if MONGO_URI and "mongodb.net" in MONGO_URI:
     ssl_context = ssl.create_default_context()
     ssl_context.check_hostname = False
     ssl_context.verify_mode = ssl.CERT_NONE
-    client = MongoClient(
-        MONGO_URI,
-        tls=True,
-        tlsCAFile=None,
-        ssl_context=ssl_context
-    )
+    client = MongoClient(MONGO_URI, tls=True, ssl_context=ssl_context)
 else:
     client = MongoClient(MONGO_URI or "mongodb://localhost:27017")
-
 db = client.Feminine_flame
 
 # === CREATE ADMIN USER ===
@@ -92,7 +102,7 @@ if db.products.count_documents({}) == 0:
             "stock": 25,
             "image_url": "",
             "is_active": True,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.now(timezone.utc)
         },
         {
             "name": "Midnight Whisper",
@@ -102,7 +112,7 @@ if db.products.count_documents({}) == 0:
             "stock": 15,
             "image_url": "",
             "is_active": True,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.now(timezone.utc)
         },
         {
             "name": "The Silent Poet",
@@ -111,12 +121,241 @@ if db.products.count_documents({}) == 0:
             "price": 9.99,
             "stock": -1,
             "image_url": "",
+            "preview_text": "In the quiet corners of my heart, where shadows dance with light, I found words that refused to stay silent. This is not just a story; it's a journey through the corridors of love, where every step echoes with memories...",
+            "file_path": "",  # Will be added when uploading actual ebook
+            "file_type": "pdf",
             "is_active": True,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.now(timezone.utc)
         }
     ])
     print("✅ Sample products added!")
 
+# === EBOOK UPLOAD ROUTE ===
+@app.route('/admin/upload-ebook', methods=['POST'])
+def upload_ebook():
+    if not session.get('admin_logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    if 'ebook_file' not in request.files:
+        return jsonify({'error': 'No ebook file uploaded'}), 400
+    
+    file = request.files['ebook_file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    if file and allowed_ebook_file(file.filename):
+        try:
+            # Read file content
+            file_content = file.read()
+            
+            # Encrypt the file
+            encrypted_data = cipher.encrypt(file_content)
+            
+            # Generate unique filename
+            original_filename = secure_filename(file.filename)
+            file_ext = original_filename.rsplit('.', 1)[1].lower()
+            encrypted_filename = f"{uuid.uuid4().hex}.{file_ext}"
+            encrypted_path = os.path.join(app.config['EBOOK_FOLDER'], encrypted_filename)
+            
+            # Save encrypted file
+            with open(encrypted_path, 'wb') as f:
+                f.write(encrypted_data)
+            
+            return jsonify({
+                'success': True,
+                'file_path': encrypted_filename,
+                'file_type': file_ext,
+                'file_size': len(file_content)
+            })
+            
+        except Exception as e:
+            return jsonify({'error': f'Upload failed: {str(e)}'}), 500
+    
+    return jsonify({'error': 'Invalid file type. Only PDF, EPUB, MOBI allowed'}), 400
+
+# === EBOOK DETAIL PAGE ===
+@app.route('/ebook/<ebook_id>')
+def ebook_detail(ebook_id):
+    try:
+        ebook = db.products.find_one({"_id": ObjectId(ebook_id), "category": "ebook", "is_active": True})
+        
+        if not ebook:
+            return render_template('Customer/404.html'), 404
+        
+        # Check if user has purchased this ebook
+        user_email = session.get('user_email')  # You might need to implement user login
+        has_purchased = False
+        
+        if user_email:
+            # Check orders for this ebook
+            orders = db.orders.find({
+                "email": user_email,
+                "status": {"$in": ["paid", "completed", "delivered"]},
+                "items": {"$elemMatch": {"id": ebook_id}}
+            })
+            has_purchased = orders.count() > 0
+        
+        # Get preview text (first 300 characters)
+        preview_text = ebook.get('preview_text', '')
+        show_full_preview = len(preview_text) > 300
+        preview_display = preview_text[:300] + '...' if show_full_preview else preview_text
+        
+        return render_template(
+            'Customer/ebook_detail.html',
+            ebook=serialize_doc(ebook),
+            has_purchased=has_purchased,
+            preview_text=preview_display,
+            show_full_preview=show_full_preview
+        )
+    except Exception as e:
+        print(f"Error loading ebook detail: {str(e)}")
+        return render_template('Customer/404.html'), 404
+
+# === EBOOK PREVIEW API ===
+@app.route('/api/ebook/<ebook_id>/preview')
+def ebook_preview(ebook_id):
+    try:
+        ebook = db.products.find_one({"_id": ObjectId(ebook_id), "category": "ebook"})
+        
+        if not ebook or not ebook.get('preview_text'):
+            return jsonify({'error': 'No preview available'}), 404
+        
+        preview_text = ebook['preview_text']
+        return jsonify({
+            'success': True,
+            'title': ebook['name'],
+            'preview': preview_text,
+            'preview_length': len(preview_text)
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# === SECURE EBOOK DOWNLOAD ===
+@app.route('/ebook/<ebook_id>/download')
+def download_ebook(ebook_id):
+    try:
+        # Check if user is logged in
+        user_email = session.get('user_email')
+        if not user_email:
+            return redirect(url_for('login', next=url_for('ebook_detail', ebook_id=ebook_id)))
+        
+        # Verify purchase
+        orders = db.orders.find({
+            "email": user_email,
+            "status": {"$in": ["paid", "completed", "delivered"]},
+            "items": {"$elemMatch": {"id": ebook_id}}
+        })
+        
+        if orders.count() == 0:
+            return render_template('Customer/error.html', 
+                                 message='You need to purchase this ebook first'), 403
+        
+        # Get ebook details
+        ebook = db.products.find_one({"_id": ObjectId(ebook_id), "category": "ebook"})
+        
+        if not ebook:
+            return render_template('Customer/404.html'), 404
+        
+        # Get encrypted file path
+        encrypted_filename = ebook.get('file_path')
+        if not encrypted_filename:
+            return render_template('Customer/error.html', 
+                                 message='Ebook file not found'), 404
+        
+        encrypted_path = os.path.join(app.config['EBOOK_FOLDER'], encrypted_filename)
+        
+        if not os.path.exists(encrypted_path):
+            return render_template('Customer/error.html', 
+                                 message='Ebook file not found on server'), 404
+        
+        # Decrypt file
+        try:
+            with open(encrypted_path, 'rb') as f:
+                encrypted_data = f.read()
+            
+            decrypted_data = cipher.decrypt(encrypted_data)
+            
+            # Create file-like object for sending
+            file_stream = io.BytesIO(decrypted_data)
+            file_stream.seek(0)
+            
+            # Determine MIME type
+            file_type = ebook.get('file_type', 'pdf')
+            mime_types = {
+                'pdf': 'application/pdf',
+                'epub': 'application/epub+zip',
+                'mobi': 'application/x-mobipocket-ebook'
+            }
+            mimetype = mime_types.get(file_type, 'application/octet-stream')
+            
+            # Send file
+            return send_file(
+                file_stream,
+                mimetype=mimetype,
+                as_attachment=True,
+                download_name=f"{ebook['name']}.{file_type}"
+            )
+            
+        except Exception as e:
+            print(f"Decryption error: {str(e)}")
+            return render_template('Customer/error.html', 
+                                 message='Error accessing ebook file'), 500
+        
+    except Exception as e:
+        print(f"Download error: {str(e)}")
+        return render_template('Customer/error.html', 
+                             message='An error occurred'), 500
+
+# === ADD EBOOK TO CART ===
+@app.route('/add-ebook-to-cart', methods=['POST'])
+def add_ebook_to_cart():
+    try:
+        data = request.get_json()
+        ebook_id = data.get('ebook_id')
+        
+        if not ebook_id:
+            return jsonify({'error': 'Ebook ID required'}), 400
+        
+        ebook = db.products.find_one({"_id": ObjectId(ebook_id), "category": "ebook", "is_active": True})
+        
+        if not ebook:
+            return jsonify({'error': 'Ebook not found'}), 404
+        
+        # Check if already purchased
+        user_email = session.get('user_email')
+        if user_email:
+            orders = db.orders.find({
+                "email": user_email,
+                "status": {"$in": ["paid", "completed", "delivered"]},
+                "items": {"$elemMatch": {"id": ebook_id}}
+            })
+            if orders.count() > 0:
+                return jsonify({'error': 'You already own this ebook!', 'owned': True}), 400
+        
+        # Add to cart
+        cart = session.get('cart', [])
+        existing_item = next((item for item in cart if item['id'] == ebook_id), None)
+        
+        if existing_item:
+            existing_item['quantity'] = 1  # Ebooks can only be bought once
+        else:
+            cart.append({
+                "id": str(ebook["_id"]),
+                "name": ebook["name"],
+                "price": ebook["price"],
+                "quantity": 1,
+                "category": "ebook"
+            })
+        
+        session['cart'] = cart
+        return jsonify({
+            'success': True,
+            'message': 'Ebook added to cart',
+            'cart_count': len(cart)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # === STRIPE CHECKOUT SESSION ===
 @app.route("/create-checkout-session", methods=["POST"])
@@ -136,9 +375,12 @@ def create_checkout_session():
         if not cart:
             return jsonify(error="Cart is empty"), 400
 
+        # Check for ebooks in cart
+        has_ebooks = any(item.get('category') == 'ebook' for item in cart)
+        if has_ebooks and not email:
+            return jsonify(error="Email is required to purchase ebooks"), 400
+        
         total = sum(item['price'] * item['quantity'] for item in cart)
-
-        # ✅ CREATE ORDER IN DB FIRST
         order = {
             "customer_name": name,
             "phone": phone,
@@ -149,20 +391,20 @@ def create_checkout_session():
             "items": cart,
             "total": total,
             "status": "pending",
-            "created_at": datetime.utcnow()
+            "created_at": datetime.now(timezone.utc)
         }
         result = db.orders.insert_one(order)
         order_id = str(result.inserted_id)
-        session['order_id'] = order_id  # Save for webhook
+        session['order_id'] = order_id
+        session['user_email'] = email  # Store for ebook access
 
-        # Create Stripe session
         session_obj = stripe.checkout.Session.create(
             payment_method_types=["card"],
             line_items=[{
                 "price_data": {
-                    "currency": "gbp",
+                    "currency": "gbp" if country != "Kenya" else "kes",
                     "product_data": {"name": "Feminine Flame Order"},
-                    "unit_amount": int(total * 100),  # Convert to pence
+                    "unit_amount": int(total * 100),
                 },
                 "quantity": 1,
             }],
@@ -170,22 +412,18 @@ def create_checkout_session():
             success_url=url_for("payment_success", _external=True),
             cancel_url=url_for("checkout", _external=True),
             customer_email=email,
-            client_reference_id=order_id,  # Critical for webhook
+            client_reference_id=order_id,
         )
         return jsonify({"id": session_obj.id})
-    
     except Exception as e:
         print("Stripe error:", str(e))
         return jsonify(error=str(e)), 400
-
 
 # === STRIPE WEBHOOK ===
 @app.route("/webhook", methods=["POST"])
 def webhook():
     payload = request.get_data(as_text=True)
     sig_header = request.headers.get("Stripe-Signature")
-    webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
-
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
     except ValueError:
@@ -202,67 +440,49 @@ def webhook():
                     {"_id": ObjectId(order_id)},
                     {"$set": {"status": "paid", "payment_status": "completed"}}
                 )
+                
+                # Send ebook download links if ebooks were purchased
+                order = db.orders.find_one({"_id": ObjectId(order_id)})
+                if order and order.get('email'):
+                    ebooks_in_order = [item for item in order.get('items', []) 
+                                     if item.get('category') == 'ebook']
+                    
+                    if ebooks_in_order:
+                        try:
+                            customer_msg = Message(
+                                subject="Feminine Flame - Your Ebooks Are Ready!",
+                                recipients=[order['email']]
+                            )
+                            ebooks_list = "\n".join([f"• {item['name']}" for item in ebooks_in_order])
+                            customer_msg.html = f"""
+                            <div style="font-family: Arial, sans-serif; max-width: 600px;">
+                                <h2 style="color: #c25e7d;">Thank You for Your Purchase!</h2>
+                                <p>Your ebooks are now available for download:</p>
+                                <ul>
+                                    {"".join([f'<li>{item["name"]} - <a href="{url_for("ebook_detail", ebook_id=item["id"], _external=True)}">Download Here</a></li>' for item in ebooks_in_order])}
+                                </ul>
+                                <p>You can also access them anytime from your account.</p>
+                            </div>
+                            """
+                            mail.send(customer_msg)
+                        except Exception as e:
+                            print(f"📧 Ebook download email failed: {str(e)}")
 
     return jsonify({"status": "success"})
-
 
 # === PAYMENT SUCCESS ===
 @app.route("/payment-success")
 def payment_success():
     session.pop('cart', None)
-    session.pop('order_id', None)
+    order_id = session.pop('order_id', None)
+    
+    # Get order details to check if ebooks were purchased
+    if order_id:
+        order = db.orders.find_one({"_id": ObjectId(order_id)})
+        if order and order.get('email'):
+            session['user_email'] = order['email']  # Keep email for ebook access
+    
     return render_template("Customer/success.html")
-
-
-# === M-PESA DARAJA ROUTES ===
-@app.route("/initiate-mpesa", methods=["POST"])
-def initiate_mpesa():
-    try:
-        data = request.get_json()
-        phone = data["phone"]
-        amount = data["amount"]
-        order_id = data["order_id"]
-
-        from mpesa_daraja import send_stk_push
-        response = send_stk_push(
-            phone=phone,
-            amount=amount,
-            account_reference=order_id,
-            transaction_desc="Feminine Flame Order"
-        )
-        return jsonify({"success": True, "message": "M-Pesa prompt sent!"})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
-@app.route("/mpesa-callback", methods=["POST"])
-def mpesa_callback():
-    try:
-        data = request.get_json()
-        result_code = data["Body"]["stkCallback"]["ResultCode"]
-        callback_metadata = data["Body"]["stkCallback"].get("CallbackMetadata", {}).get("Item", [])
-        order_id = None
-        for item in callback_metadata:
-            if item.get("Name") == "AccountReference":
-                order_id = item.get("Value")
-                break
-
-        if result_code == 0 and order_id:
-            db.orders.update_one(
-                {"_id": ObjectId(order_id)},
-                {"$set": {"status": "paid", "payment_status": "completed"}}
-            )
-        elif order_id:
-            db.orders.update_one(
-                {"_id": ObjectId(order_id)},
-                {"$set": {"status": "failed", "payment_status": "failed"}}
-            )
-
-        return jsonify({"ResultCode": 0, "ResultDesc": "Accepted"})
-    except Exception as e:
-        current_app.logger.error(f"M-Pesa callback error: {str(e)}")
-        return jsonify({"ResultCode": 1, "ResultDesc": "Error occurred"}), 500
-
 
 # === HOMEPAGE ===
 @app.route('/')
@@ -271,7 +491,6 @@ def home():
     perfumes = [serialize_doc(p) for p in all_products if p.get('category') == 'perfume']
     ebooks = [serialize_doc(p) for p in all_products if p.get('category') == 'ebook']
     return render_template('Customer/index.html', perfumes=perfumes, ebooks=ebooks)
-
 
 # === CART MANAGEMENT ===
 @app.route('/cart')
@@ -286,14 +505,16 @@ def update_cart():
     data = request.get_json()
     product_id = data['product_id']
     change = data['change']
-    
     for item in cart:
         if item['id'] == product_id:
-            item['quantity'] = max(1, item['quantity'] + change)
-            if item['quantity'] == 0:
-                cart = [i for i in cart if i['id'] != product_id]
+            # For ebooks, quantity should always be 1
+            if item.get('category') == 'ebook':
+                item['quantity'] = 1
+            else:
+                item['quantity'] = max(1, item['quantity'] + change)
+                if item['quantity'] == 0:
+                    cart = [i for i in cart if i['id'] != product_id]
             break
-    
     session['cart'] = cart
     total = sum(item['price'] * item['quantity'] for item in cart)
     return jsonify({"success": True, "total": total})
@@ -303,7 +524,6 @@ def remove_from_cart():
     cart = session.get('cart', [])
     data = request.get_json()
     product_id = data['product_id']
-    
     cart = [item for item in cart if item['id'] != product_id]
     session['cart'] = cart
     total = sum(item['price'] * item['quantity'] for item in cart)
@@ -315,7 +535,6 @@ def sync_cart():
     session['cart'] = data['cart']
     return jsonify({"success": True})
 
-
 # === CHECKOUT ===
 @app.route('/checkout', methods=['GET', 'POST'])
 def checkout():
@@ -325,6 +544,10 @@ def checkout():
         address = request.form.get('address')
         country = request.form.get('country')
         email = request.form.get('email')
+        
+        # Override phone number for Kenya
+        if country == "Kenya":
+            phone = "0715072834"
 
         if not all([name, phone, address, country]):
             return "All fields are required", 400
@@ -333,8 +556,11 @@ def checkout():
         if not cart:
             return "Cart is empty", 400
 
-        total = sum(item['price'] * item['quantity'] for item in cart)
+        has_ebooks = any(item.get('category') == 'ebook' for item in cart)
+        if has_ebooks and not email:
+            return "Email is required to purchase ebooks (so we can unlock your download).", 400
 
+        total = sum(item['price'] * item['quantity'] for item in cart)
         order = {
             "customer_name": name,
             "phone": phone,
@@ -345,10 +571,12 @@ def checkout():
             "items": cart,
             "total": total,
             "status": "pending",
-            "created_at": datetime.utcnow()
+            "created_at": datetime.now(timezone.utc)
         }
         result = db.orders.insert_one(order)
         order_id = str(result.inserted_id)
+        session['order_id'] = order_id
+        session['user_email'] = email  # Store for ebook access
 
         # === EMAIL NOTIFICATIONS ===
         try:
@@ -384,8 +612,8 @@ def checkout():
                 <div style="font-family: Arial, sans-serif; max-width: 600px;">
                     <h2 style="color: #c25e7d;">Thank You, {name}!</h2>
                     <p>Your order has been received.</p>
-                    <p><strong>Payment:</strong> {"You'll receive an M-Pesa prompt shortly" if country=="Kenya" else "You'll be redirected to secure payment"}</p>
-                    <p>We'll contact you soon at <strong>{phone}</strong>.</p>
+                    <p><strong>Payment:</strong> {"Send M-Pesa to 0715072834" if country=="Kenya" else "Complete payment on Stripe"}</p>
+                    <p>We'll contact you soon.</p>
                 </div>
                 """
                 mail.send(customer_msg)
@@ -395,27 +623,17 @@ def checkout():
         session['order_id'] = order_id
 
         if country == "Kenya":
-            try:
-                from mpesa_daraja import send_stk_push
-                send_stk_push(
-                    phone=phone,
-                    amount=total,
-                    account_reference=order_id,
-                    transaction_desc="Feminine Flame Order"
-                )
-                session.pop('cart', None)
-                return f"""
-                <div style="max-width: 600px; margin: 3rem auto; padding: 2rem; text-align: center; font-family: Arial, sans-serif;">
-                    <h2>✅ M-Pesa Prompt Sent!</h2>
-                    <p>Please complete payment on your phone.</p>
-                    <p>Order ID: {order_id}</p>
-                    <a href="/" style="display: inline-block; margin-top: 1.5rem; padding: 0.6rem 1.2rem; background: #c25e7d; color: white; text-decoration: none; border-radius: 30px;">Back to Home</a>
-                </div>
-                """
-            except Exception as e:
-                return f"<h2>⚠️ M-Pesa failed: {str(e)}</h2>"
+            session.pop('cart', None)
+            return f"""
+            <div style="max-width: 600px; margin: 3rem auto; padding: 2rem; text-align: center; font-family: Arial, sans-serif;">
+                <h2>✅ Order Received!</h2>
+                <p>Thank you, {name}! We've received your order.</p>
+                <p>Please send your payment via M-Pesa to <strong>0715072834</strong>.</p>
+                <p>We'll confirm your order once payment is received.</p>
+                <a href="/" style="display: inline-block; margin-top: 1.5rem; padding: 0.6rem 1.2rem; background: #c25e7d; color: white; text-decoration: none; border-radius: 30px;">Back to Home</a>
+            </div>
+            """
         else:
-            # For UK: return JSON so frontend can trigger Stripe
             return jsonify({"error": "Use Stripe checkout"}), 400
 
     # GET request
@@ -429,7 +647,8 @@ def checkout():
                     "id": str(product["_id"]),
                     "name": product["name"],
                     "price": product["price"],
-                    "quantity": 1
+                    "quantity": 1,
+                    "category": product.get("category", "perfume")
                 }]
         except Exception as e:
             print(f"⚠️ Invalid product_id: {product_id}")
@@ -437,7 +656,6 @@ def checkout():
     cart = session.get('cart', [])
     total = sum(item['price'] * item['quantity'] for item in cart) if cart else 0
     return render_template('Customer/checkout.html', cart=cart, total=total, stripe_pub_key=stripe_pub_key)
-
 
 # === ADMIN PANEL ===
 @app.route('/admin', methods=['GET', 'POST'])
@@ -460,8 +678,24 @@ def admin():
 
     # Delete product
     if request.args.get('action') == 'delete' and request.args.get('type') == 'product':
-        db.products.delete_one({"_id": ObjectId(request.args.get('id'))})
+        product_id = request.args.get('id')
+        product = db.products.find_one({"_id": ObjectId(product_id)})
+        
+        # If it's an ebook, delete the encrypted file too
+        if product and product.get('category') == 'ebook':
+            file_path = product.get('file_path')
+            if file_path:
+                encrypted_file = os.path.join(app.config['EBOOK_FOLDER'], file_path)
+                if os.path.exists(encrypted_file):
+                    os.remove(encrypted_file)
+        
+        db.products.delete_one({"_id": ObjectId(product_id)})
         return redirect(url_for('admin', tab='products'))
+
+    # Clear all orders
+    if request.method == 'POST' and request.form.get('clear_orders'):
+        db.orders.delete_many({})
+        return redirect(url_for('admin', tab='orders'))
 
     # Add/update product
     if request.method == 'POST' and request.form.get('name'):
@@ -484,6 +718,13 @@ def admin():
             image_filename = existing.get('image_url', '')
 
         stock = -1 if category == 'ebook' else int(request.form['stock'])
+        
+        # Handle ebook file upload
+        file_path = ''
+        file_type = ''
+        if category == 'ebook':
+            file_path = request.form.get('ebook_file_path', '')
+            file_type = request.form.get('ebook_file_type', 'pdf')
 
         data = {
             "name": request.form['name'],
@@ -494,21 +735,63 @@ def admin():
             "image_url": image_filename,
             "is_active": True
         }
+        
+        # Add ebook-specific fields
+        if category == 'ebook':
+            data["author"] = request.form.get('author', '').strip()
+            data["preview_text"] = request.form.get('preview_text', '')[:1000]  # Limit to 1000 chars
+            data["file_path"] = file_path
+            data["file_type"] = file_type
 
         product_id = request.form.get('product_id')
         if product_id:
             db.products.update_one({"_id": ObjectId(product_id)}, {"$set": data})
         else:
-            data["created_at"] = datetime.utcnow()
+            data["created_at"] = datetime.now(timezone.utc)
             db.products.insert_one(data)
         return redirect(url_for('admin', tab='products'))
 
     # Update order status
-    if request.method == 'POST' and request.form.get('order_id'):
-        db.orders.update_one(
-            {"_id": ObjectId(request.form['order_id'])},
-            {"$set": {"status": "delivered"}}
-        )
+    if request.method == 'POST' and request.form.get('order_id') and request.form.get('new_status'):
+        order_id = request.form['order_id']
+        new_status = request.form['new_status']
+        if new_status not in {"paid", "delivered"}:
+            return "Invalid status", 400
+
+        update_doc = {"status": new_status}
+        if new_status == "paid":
+            update_doc["payment_status"] = "completed"
+
+        db.orders.update_one({"_id": ObjectId(order_id)}, {"$set": update_doc})
+
+        # If this order includes ebooks, send download links when marked paid (useful for M-Pesa)
+        if new_status == "paid":
+            try:
+                order = db.orders.find_one({"_id": ObjectId(order_id)})
+                if order and order.get("email"):
+                    ebooks_in_order = [
+                        item for item in order.get("items", [])
+                        if item.get("category") == "ebook"
+                    ]
+                    if ebooks_in_order:
+                        customer_msg = Message(
+                            subject="Feminine Flame - Your Ebooks Are Ready!",
+                            recipients=[order["email"]],
+                        )
+                        customer_msg.html = f"""
+                        <div style="font-family: Arial, sans-serif; max-width: 600px;">
+                            <h2 style="color: #c25e7d;">Payment Confirmed!</h2>
+                            <p>Your ebooks are now unlocked. Use the links below:</p>
+                            <ul>
+                                {"".join([f'<li>{item["name"]} - <a href="{url_for("ebook_detail", ebook_id=item["id"], _external=True)}">Open</a></li>' for item in ebooks_in_order])}
+                            </ul>
+                            <p>Open an ebook page and click <strong>Download Ebook</strong>.</p>
+                        </div>
+                        """
+                        mail.send(customer_msg)
+            except Exception as e:
+                print(f"📧 Ebook unlock email failed: {str(e)}")
+
         return redirect(url_for('admin', tab='orders'))
 
     tab = request.args.get('tab', 'dashboard')
@@ -525,10 +808,25 @@ def admin():
         page='dashboard',
         tab=tab,
         products=[serialize_doc(p) for p in products],
-        orders=orders,
+        orders=[serialize_doc(o) for o in orders],
         edit_product=edit_product
     )
 
+# === USER LOGIN (Simple Implementation) ===
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        # In a real app, you'd check password here
+        session['user_email'] = email
+        next_page = request.args.get('next')
+        return redirect(next_page or url_for('home'))
+    return render_template('Customer/login.html')
+
+@app.route('/logout')
+def logout():
+    session.pop('user_email', None)
+    return redirect(url_for('home'))
 
 # === DEBUG ROUTE ===
 @app.route('/test-db')
@@ -537,8 +835,10 @@ def test_db():
         db.list_collection_names()
         return "✅ Connected to MongoDB!"
     except Exception as e:
-        return f"❌ Error: {str(e)}"  
-
-
+        return f"❌ Error: {str(e)}"
+    
 if __name__ == '__main__':
+    print("🚀 Starting Feminine Flame Application...")
+    print(f"📁 Ebooks folder: {EBOOK_FOLDER}")
+    print(f"📁 Uploads folder: {UPLOAD_FOLDER}")
     app.run(debug=True)

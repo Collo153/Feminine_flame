@@ -102,9 +102,13 @@
           
           <!-- Quantity Controls -->
           <div class="item-quantity">
-            <button class="quantity-btn minus" onclick="updateQuantity('{{ item.id }}', -1)">-</button>
-            <span>{{ item.quantity }}</span>
-            <button class="quantity-btn plus" onclick="updateQuantity('{{ item.id }}', 1)">+</button>
+            {% if item.category == 'ebook' %}
+              <span>Qty: 1</span>
+            {% else %}
+              <button class="quantity-btn minus" onclick="updateQuantity('{{ item.id }}', -1)">-</button>
+              <span>{{ item.quantity }}</span>
+              <button class="quantity-btn plus" onclick="updateQuantity('{{ item.id }}', 1)">+</button>
+            {% endif %}
           </div>
         </div>
       </div>

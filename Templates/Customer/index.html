@@ -7,6 +7,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
 
@@ -22,7 +23,7 @@
         <li><a href="#ebooks">eBooks</a></li>
         <li><a href="#about">About</a></li>
         <li><a href="#footer-contact">Contact</a></li>
-        <li><a href="{{ url_for('cart') }}">My Cart</a></li>
+        <li><a href="{{ url_for('cart') }}">🛒 My Cart</a></li>
       </ul>
     </nav>
   </header>
@@ -43,9 +44,9 @@
       {% for product in perfumes %}
       <div class="product-card">
         {% if product.image_url %}
-          <div class="product-img">
-            <img src="{{ url_for('static', filename='uploads/' + product.image_url) }}" alt="{{ product.name }}">
-          </div>
+          <img src="{{ url_for('static', filename='uploads/' + product.image_url) }}" 
+               class="product-img" 
+               alt="{{ product.name }}">
         {% else %}
           <div class="product-img-placeholder">No Image</div>
         {% endif %}
@@ -55,7 +56,7 @@
           <div class="product-price">KES {{ "%.2f"|format(product.price) }}</div>
           <div class="product-actions">
             <button class="btn-cart" 
-                    onclick='addToCart({{ product._id|tojson }}, {{ product.name|tojson }}, {{ product.price|tojson }})'>
+                    onclick='addToCart("{{ product._id }}", "{{ product.name }}", {{ product.price }})'>
               Add to Cart
             </button>
             <a href="{{ url_for('checkout', product_id=product._id) }}" class="btn-buy">Buy Now</a>
@@ -72,43 +73,79 @@
   <section id="ebooks">
     <h2 class="section-title">📚 Soulful eBooks</h2>
     <div class="products-grid">
-{% for product in ebooks %}
-<div class="product-card">
-  {% if product.image_url %}
-    {% if product.image_url.endswith(('.pdf', '.epub', '.mobi')) %}
-      <div class="product-img-placeholder">eBook File</div>
-    {% else %}
-      <img src="{{ url_for('static', filename='uploads/' + product.image_url) }}" 
-           alt="{{ product.name }}" class="product-img">
-    {% endif %}
-  {% else %}
-    <div class="product-img-placeholder">No File</div>
-  {% endif %}
-  <div class="product-info">
-    <h3>{{ product.name }}</h3>
-    <p>{{ product.description[:80] }}...</p>
-    <div class="product-price">KES {{ "%.2f"|format(product.price) }}</div>
-    <div class="product-actions">
-      {% if product.image_url and product.image_url.endswith(('.pdf', '.epub', '.mobi')) %}
-        <a href="{{ url_for('static', filename='uploads/' + product.image_url) }}" 
-           class="btn btn-buy" download>Download eBook</a>
+      {% for product in ebooks %}
+      <div class="product-card">
+        {% if product.image_url %}
+          <img src="{{ url_for('static', filename='uploads/' + product.image_url) }}" 
+               class="product-img" 
+               alt="{{ product.name }}">
+        {% else %}
+          <div class="product-img-placeholder">
+            <i class="fas fa-book-open fa-3x"></i>
+            <p style="margin-top: 10px; font-size: 16px;">{{ product.name }}</p>
+          </div>
+        {% endif %}
+        <div class="product-info">
+          <h3 class="product-title">{{ product.name }}</h3>
+          <p>{{ product.description[:80] }}...</p>
+          <div class="product-price">KES {{ "%.2f"|format(product.price) }}</div>
+          <div class="product-actions">
+            <a href="{{ url_for('ebook_detail', ebook_id=product._id) }}" class="btn-buy">
+              <i class="fas fa-eye"></i> View Details
+            </a>
+          </div>
+        </div>
+      </div>
       {% else %}
-        <button class="btn-cart" 
-                onclick='addToCart({{ product._id|tojson }}, {{ product.name|tojson }}, {{ product.price|tojson }})'>
-          Add to Cart
-        </button>
-      {% endif %}
-    </div>
-  </div>
-</div>
-{% endfor %}
+        <p style="text-align:center;grid-column:1/-1;">No ebooks available yet.</p>
+      {% endfor %}
     </div>
   </section>
 
   <!-- ABOUT SECTION -->
-  <section id="about" style="padding:3rem 0;text-align:center;">
-    <h2 class="section-title">About Feminine Flame</h2>
-    <p>We craft luxury perfumes and publish empowering stories for the bold, beautiful, and brave.</p>
+  <section id="about" class="about-section">
+    <div class="about-inner">
+      <div class="about-intro">
+        <h2 class="section-title">About Feminine Flame</h2>
+        <p class="about-tagline">
+          Feminine Flame is a sanctuary for women who see fragrance and words as part of their self-care ritual.
+        </p>
+      </div>
+
+      <div class="about-grid">
+        <div class="about-card">
+          <h3>Our Story</h3>
+          <p>
+            Born from a love of scent and storytelling, Feminine Flame was created to celebrate the softness and strength of the modern woman.
+            Each perfume is blended in small batches, and every ebook is curated to speak to the heart, the mind, and the soul.
+          </p>
+          <p>
+            From Nairobi to the world, we exist to remind you that your presence should be felt long after you leave a room—through your scent,
+            your words, and the legacy you are writing.
+          </p>
+        </div>
+
+        <div class="about-card">
+          <h3>What We Offer</h3>
+          <ul>
+            <li><strong>Signature Perfumes:</strong> Long-lasting, skin-loving scents crafted to match your mood and moments.</li>
+            <li><strong>Soulful eBooks:</strong> Stories and reflections that hold your hand through love, healing, and becoming.</li>
+            <li><strong>Intentional Gifting:</strong> Thoughtfully packaged pieces that make meaningful, memorable gifts.</li>
+          </ul>
+        </div>
+
+        <div class="about-card">
+          <h3>Our Promise</h3>
+          <p>
+            We create with intention, test with care, and listen closely to the women who wear and read our work.
+            Every bottle and every page is an invitation to pause, breathe, and reconnect with the woman you are becoming.
+          </p>
+          <p class="about-highlight">
+            Feminine Flame is more than a brand—it is a quiet revolution of women choosing themselves first.
+          </p>
+        </div>
+      </div>
+    </div>
   </section>
 
   <!-- FOOTER -->
@@ -146,7 +183,7 @@
           <a href="https://facebook.com/your_facebook" target="_blank" class="social-link" aria-label="Facebook">
             <i class="fab fa-facebook-f"></i>
           </a>
-          <a href="mailto:kipkenycollo@gmail.com" class="social-link" aria-label="Email">
+          <a href="mailto:feminineflame19@gmail.com" class="social-link" aria-label="Email">
             <i class="fas fa-envelope"></i>
           </a>
           <a href="https://wa.me/254742954960" target="_blank" class="social-link" aria-label="WhatsApp">
@@ -161,6 +198,46 @@
     </div>
   </footer>
 
-  <script src="{{ url_for('static', filename='js/cart.js') }}"></script>
+  <script>
+    function addToCart(productId, productName, price) {
+        // Get current cart from session or initialize empty
+        let cart = JSON.parse(sessionStorage.getItem('cart') || '[]');
+        
+        // Check if product already in cart
+        const existingItem = cart.find(item => item.id === productId);
+        
+        if (existingItem) {
+            existingItem.quantity += 1;
+        } else {
+            cart.push({
+                id: productId,
+                name: productName,
+                price: price,
+                quantity: 1
+            });
+        }
+        
+        // Save to session storage
+        sessionStorage.setItem('cart', JSON.stringify(cart));
+        
+        // Sync with server
+        fetch('/sync-cart', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ cart: cart })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`${productName} added to cart!`);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    }
+  </script>
 </body>
 </html>
