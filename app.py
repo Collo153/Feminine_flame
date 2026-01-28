@@ -74,14 +74,30 @@ def allowed_ebook_file(filename):
 
 # === MONGODB CONNECTION ===
 MONGO_URI = os.getenv("MONGO_URI")
-if MONGO_URI and "mongodb.net" in MONGO_URI:
-    ssl_context = ssl.create_default_context()
-    ssl_context.check_hostname = False
-    ssl_context.verify_mode = ssl.CERT_NONE
-    client = MongoClient(MONGO_URI, tls=True, ssl_context=ssl_context)
-else:
-    client = MongoClient(MONGO_URI or "mongodb://localhost:27017")
-db = client.Feminine_flame
+client = None
+db = None
+
+def get_db():
+    """Get MongoDB connection with lazy initialization"""
+    global client, db
+    if client is None:
+        try:
+            if MONGO_URI and "mongodb.net" in MONGO_URI:
+                ssl_context = ssl.create_default_context()
+                ssl_context.check_hostname = False
+                ssl_context.verify_mode = ssl.CERT_NONE
+                client = MongoClient(MONGO_URI, tls=True, ssl_context=ssl_context, serverSelectionTimeoutMS=5000)
+            else:
+                client = MongoClient(MONGO_URI or "mongodb://localhost:27017", serverSelectionTimeoutMS=5000)
+            
+            # Test connection
+            client.admin.command('ping')
+            db = client.Feminine_flame
+            print("✅ MongoDB connected successfully")
+        except Exception as e:
+            print(f"⚠️  MongoDB connection warning: {str(e)}")
+            print("⚠️  Continuing with limited functionality...")
+    return db
 
 # === LAZY INITIALIZATION ===
 _initialized = False
@@ -93,8 +109,14 @@ def initialize_db():
         return
     
     try:
+        database = get_db()
+        if database is None:
+            print("⚠️  Database not available, skipping initialization")
+            _initialized = True
+            return
+        
         # === CREATE ADMIN USER ===
-        admin_exists = db.users.find_one({"email": "feminineflame19@gmail.com"})
+        admin_exists = database.users.find_one({"email": "feminineflame19@gmail.com"})
         if not admin_exists:
             admin_user = {
                 "email": "feminineflame19@gmail.com",
@@ -102,12 +124,12 @@ def initialize_db():
                 "role": "admin",
                 "is_active": True
             }
-            db.users.insert_one(admin_user)
+            database.users.insert_one(admin_user)
             print("✅ Admin user created!")
         
         # === SEED SAMPLE DATA ===
-        if db.products.count_documents({}) == 0:
-            db.products.insert_many([
+        if database.products.count_documents({}) == 0:
+            database.products.insert_many([
                 {
                     "name": "Velvet Bloom",
                     "description": "A rich floral blend with notes of rose, amber, and vanilla.",
@@ -149,13 +171,26 @@ def initialize_db():
         print(f"⚠️  Database initialization failed (continuing anyway): {str(e)}")
         _initialized = True  # Mark as attempted to avoid retry loop
 
+# === BEFORE REQUEST: Ensure DB connection ===
+@app.before_request
+def before_request():
+    """Initialize DB connection before each request"""
+    global db
+    if db is None:
+        db = get_db()
+    if db is not None:
+        initialize_db()
+
 # === GLOBAL ERROR HANDLER ===
 @app.errorhandler(500)
 def handle_500_error(e):
     """Handle unhandled exceptions to prevent FUNCTION_INVOCATION_FAILED"""
     print(f"❌ Error: {str(e)}")
-    return render_template('Customer/error.html', 
-                         message='An unexpected error occurred. Please try again.'), 500
+    try:
+        return render_template('Customer/error.html', 
+                             message='An unexpected error occurred. Please try again.'), 500
+    except:
+        return "Internal Server Error", 500
 
 # === EBOOK UPLOAD ROUTE ===
 @app.route('/admin/upload-ebook', methods=['POST'])
@@ -509,14 +544,36 @@ def payment_success():
     
     return render_template("Customer/success.html")
 
+# === HEALTHCHECK ROUTE ===
+@app.route('/health')
+def health():
+    """Healthcheck endpoint for Vercel monitoring"""
+    try:
+        db_status = "connected" if db is not None else "not_connected"
+        return jsonify({
+            "status": "healthy",
+            "database": db_status,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 # === HOMEPAGE ===
 @app.route('/')
 def home():
-    initialize_db()  # Ensure DB is initialized before first request
-    all_products = list(db.products.find({"is_active": True}))
-    perfumes = [serialize_doc(p) for p in all_products if p.get('category') == 'perfume']
-    ebooks = [serialize_doc(p) for p in all_products if p.get('category') == 'ebook']
-    return render_template('Customer/index.html', perfumes=perfumes, ebooks=ebooks)
+    try:
+        initialize_db()  # Ensure DB is initialized before first request
+        if db is None:
+            return render_template('Customer/error.html', 
+                                 message='Database connection unavailable. Please try again later.'), 503
+        all_products = list(db.products.find({"is_active": True}))
+        perfumes = [serialize_doc(p) for p in all_products if p.get('category') == 'perfume']
+        ebooks = [serialize_doc(p) for p in all_products if p.get('category') == 'ebook']
+        return render_template('Customer/index.html', perfumes=perfumes, ebooks=ebooks)
+    except Exception as e:
+        print(f"❌ Homepage error: {str(e)}")
+        return render_template('Customer/error.html', 
+                             message='Error loading homepage. Please try again later.'), 500
 
 # === CART MANAGEMENT ===
 @app.route('/cart')
@@ -834,4 +891,6 @@ if __name__ == '__main__':
     print("🚀 Starting Feminine Flame Application...")
     print(f"📁 Ebooks folder: {EBOOK_FOLDER}")
     print(f"📁 Uploads folder: {UPLOAD_FOLDER}")
+    print(f"🔗 MongoDB URI: {'SET' if MONGO_URI else 'NOT SET'}")
+    print(f"🔐 Stripe Key: {'SET' if os.getenv('STRIPE_SECRET_KEY') else 'NOT SET'}")
     app.run(debug=True)
