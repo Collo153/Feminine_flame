@@ -176,9 +176,15 @@
                         <tr>
                             <td>
                                 {% if product.image_url %}
-                                <img src="{{ url_for('static', filename='uploads/' + product.image_url) }}" 
-                                     class="product-image" 
-                                     alt="{{ product.name }}">
+                                  {% if product.image_url.startswith('gridfs:') %}
+                                    <img src="{{ url_for('media', file_id=product.image_url.split(':', 1)[1]) }}"
+                                         class="product-image"
+                                         alt="{{ product.name }}">
+                                  {% else %}
+                                    <img src="{{ url_for('static', filename='uploads/' + product.image_url) }}" 
+                                         class="product-image" 
+                                         alt="{{ product.name }}">
+                                  {% endif %}
                                 {% else %}
                                 <span style="color: #999;">No Image</span>
                                 {% endif %}

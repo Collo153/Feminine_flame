@@ -57,7 +57,7 @@ nav a:hover {
 
 /* =============== HERO SECTION =============== */
 .hero {
-  background-image: url('/static/images/back2.JPG');
+  background-image: url('/static/Images/back2.jpg');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;

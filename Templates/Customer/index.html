@@ -14,7 +14,7 @@
   <!-- HEADER -->
   <header>
     <div class="logo">
-      <img src="{{ url_for('static', filename='images/Logo b.png') }}" alt="Feminine Flame">
+      <img src="{{ url_for('static', filename='Images/Logo b.png') }}" alt="Feminine Flame">
     </div>
     <nav>
       <ul>
@@ -44,9 +44,15 @@
       {% for product in perfumes %}
       <div class="product-card">
         {% if product.image_url %}
-          <img src="{{ url_for('static', filename='uploads/' + product.image_url) }}" 
-               class="product-img" 
-               alt="{{ product.name }}">
+          {% if product.image_url.startswith('gridfs:') %}
+            <img src="{{ url_for('media', file_id=product.image_url.split(':', 1)[1]) }}"
+                 class="product-img"
+                 alt="{{ product.name }}">
+          {% else %}
+            <img src="{{ url_for('static', filename='uploads/' + product.image_url) }}" 
+                 class="product-img" 
+                 alt="{{ product.name }}">
+          {% endif %}
         {% else %}
           <div class="product-img-placeholder">No Image</div>
         {% endif %}
@@ -55,8 +61,13 @@
           <p>{{ product.description[:80] }}...</p>
           <div class="product-price">KES {{ "%.2f"|format(product.price) }}</div>
           <div class="product-actions">
-            <button class="btn-cart" 
-                    onclick='addToCart("{{ product._id }}", "{{ product.name }}", {{ product.price }})'>
+            <button
+              class="btn-cart add-to-cart-btn"
+              data-product-id="{{ product._id }}"
+              data-product-name="{{ product.name }}"
+              data-product-price="{{ product.price }}"
+              type="button"
+            >
               Add to Cart
             </button>
             <a href="{{ url_for('checkout', product_id=product._id) }}" class="btn-buy">Buy Now</a>
@@ -76,9 +87,15 @@
       {% for product in ebooks %}
       <div class="product-card">
         {% if product.image_url %}
-          <img src="{{ url_for('static', filename='uploads/' + product.image_url) }}" 
-               class="product-img" 
-               alt="{{ product.name }}">
+          {% if product.image_url.startswith('gridfs:') %}
+            <img src="{{ url_for('media', file_id=product.image_url.split(':', 1)[1]) }}"
+                 class="product-img"
+                 alt="{{ product.name }}">
+          {% else %}
+            <img src="{{ url_for('static', filename='uploads/' + product.image_url) }}" 
+                 class="product-img" 
+                 alt="{{ product.name }}">
+          {% endif %}
         {% else %}
           <div class="product-img-placeholder">
             <i class="fas fa-book-open fa-3x"></i>
@@ -152,7 +169,7 @@
   <footer class="site-footer" id="footer-contact">
     <div class="footer-container">
       <div class="footer-col">
-        <img src="{{ url_for('static', filename='images/Logo.JPG') }}" alt="Feminine Flame" class="footer-logo">
+        <img src="{{ url_for('static', filename='Images/Logo.jpg') }}" alt="Feminine Flame" class="footer-logo">
         <p class="footer-desc">
           Curating luxury perfumes and soulful stories for the modern woman who dares to leave a trail.
         </p>
@@ -238,6 +255,16 @@
             console.error('Error:', error);
         });
     }
+
+    // Bind buttons (avoids inline JS with Jinja variables)
+    document.querySelectorAll('.add-to-cart-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const productId = btn.dataset.productId;
+        const productName = btn.dataset.productName;
+        const price = Number(btn.dataset.productPrice || 0);
+        addToCart(productId, productName, price);
+      });
+    });
   </script>
 </body>
 </html>
