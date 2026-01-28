@@ -59,8 +59,12 @@ EBOOK_FOLDER = os.path.join('protected_ebooks')  # Encrypted ebooks stored separ
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['EBOOK_FOLDER'] = EBOOK_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max for ebooks
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(EBOOK_FOLDER, exist_ok=True)
+
+# Create directories only on local development
+# (Vercel file system is ephemeral, use S3/cloud storage in production)
+if not os.getenv('VERCEL'):
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    os.makedirs(EBOOK_FOLDER, exist_ok=True)
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -79,56 +83,79 @@ else:
     client = MongoClient(MONGO_URI or "mongodb://localhost:27017")
 db = client.Feminine_flame
 
-# === CREATE ADMIN USER ===
-admin_exists = db.users.find_one({"email": "feminineflame19@gmail.com"})
-if not admin_exists:
-    admin_user = {
-        "email": "feminineflame19@gmail.com",
-        "password_hash": generate_password_hash("MaAlma26."),
-        "role": "admin",
-        "is_active": True
-    }
-    db.users.insert_one(admin_user)
-    print("✅ Admin user created!")
+# === LAZY INITIALIZATION ===
+_initialized = False
 
-# === SEED SAMPLE DATA ===
-if db.products.count_documents({}) == 0:
-    db.products.insert_many([
-        {
-            "name": "Velvet Bloom",
-            "description": "A rich floral blend with notes of rose, amber, and vanilla.",
-            "category": "perfume",
-            "price": 89.00,
-            "stock": 25,
-            "image_url": "",
-            "is_active": True,
-            "created_at": datetime.now(timezone.utc)
-        },
-        {
-            "name": "Midnight Whisper",
-            "description": "Mysterious and sensual — oud, sandalwood, and musk.",
-            "category": "perfume",
-            "price": 75.00,
-            "stock": 15,
-            "image_url": "",
-            "is_active": True,
-            "created_at": datetime.now(timezone.utc)
-        },
-        {
-            "name": "The Silent Poet",
-            "description": "A soul-stirring eBook about love, loss, and rebirth.",
-            "category": "ebook",
-            "price": 9.99,
-            "stock": -1,
-            "image_url": "",
-            "preview_text": "In the quiet corners of my heart, where shadows dance with light, I found words that refused to stay silent. This is not just a story; it's a journey through the corridors of love, where every step echoes with memories...",
-            "file_path": "",  # Will be added when uploading actual ebook
-            "file_type": "pdf",
-            "is_active": True,
-            "created_at": datetime.now(timezone.utc)
-        }
-    ])
-    print("✅ Sample products added!")
+def initialize_db():
+    """Initialize database (admin user, sample data) - runs once per cold start"""
+    global _initialized
+    if _initialized:
+        return
+    
+    try:
+        # === CREATE ADMIN USER ===
+        admin_exists = db.users.find_one({"email": "feminineflame19@gmail.com"})
+        if not admin_exists:
+            admin_user = {
+                "email": "feminineflame19@gmail.com",
+                "password_hash": generate_password_hash("MaAlma26."),
+                "role": "admin",
+                "is_active": True
+            }
+            db.users.insert_one(admin_user)
+            print("✅ Admin user created!")
+        
+        # === SEED SAMPLE DATA ===
+        if db.products.count_documents({}) == 0:
+            db.products.insert_many([
+                {
+                    "name": "Velvet Bloom",
+                    "description": "A rich floral blend with notes of rose, amber, and vanilla.",
+                    "category": "perfume",
+                    "price": 89.00,
+                    "stock": 25,
+                    "image_url": "",
+                    "is_active": True,
+                    "created_at": datetime.now(timezone.utc)
+                },
+                {
+                    "name": "Midnight Whisper",
+                    "description": "Mysterious and sensual — oud, sandalwood, and musk.",
+                    "category": "perfume",
+                    "price": 75.00,
+                    "stock": 15,
+                    "image_url": "",
+                    "is_active": True,
+                    "created_at": datetime.now(timezone.utc)
+                },
+                {
+                    "name": "The Silent Poet",
+                    "description": "A soul-stirring eBook about love, loss, and rebirth.",
+                    "category": "ebook",
+                    "price": 9.99,
+                    "stock": -1,
+                    "image_url": "",
+                    "preview_text": "In the quiet corners of my heart, where shadows dance with light, I found words that refused to stay silent. This is not just a story; it's a journey through the corridors of love, where every step echoes with memories...",
+                    "file_path": "",  # Will be added when uploading actual ebook
+                    "file_type": "pdf",
+                    "is_active": True,
+                    "created_at": datetime.now(timezone.utc)
+                }
+            ])
+            print("✅ Sample products added!")
+        
+        _initialized = True
+    except Exception as e:
+        print(f"⚠️  Database initialization failed (continuing anyway): {str(e)}")
+        _initialized = True  # Mark as attempted to avoid retry loop
+
+# === GLOBAL ERROR HANDLER ===
+@app.errorhandler(500)
+def handle_500_error(e):
+    """Handle unhandled exceptions to prevent FUNCTION_INVOCATION_FAILED"""
+    print(f"❌ Error: {str(e)}")
+    return render_template('Customer/error.html', 
+                         message='An unexpected error occurred. Please try again.'), 500
 
 # === EBOOK UPLOAD ROUTE ===
 @app.route('/admin/upload-ebook', methods=['POST'])
@@ -377,8 +404,6 @@ def create_checkout_session():
 
         # Check for ebooks in cart
         has_ebooks = any(item.get('category') == 'ebook' for item in cart)
-        if has_ebooks and not email:
-            return jsonify(error="Email is required to purchase ebooks"), 400
         
         total = sum(item['price'] * item['quantity'] for item in cart)
         order = {
@@ -487,6 +512,7 @@ def payment_success():
 # === HOMEPAGE ===
 @app.route('/')
 def home():
+    initialize_db()  # Ensure DB is initialized before first request
     all_products = list(db.products.find({"is_active": True}))
     perfumes = [serialize_doc(p) for p in all_products if p.get('category') == 'perfume']
     ebooks = [serialize_doc(p) for p in all_products if p.get('category') == 'ebook']
@@ -555,10 +581,6 @@ def checkout():
         cart = session.get('cart', [])
         if not cart:
             return "Cart is empty", 400
-
-        has_ebooks = any(item.get('category') == 'ebook' for item in cart)
-        if has_ebooks and not email:
-            return "Email is required to purchase ebooks (so we can unlock your download).", 400
 
         total = sum(item['price'] * item['quantity'] for item in cart)
         order = {
@@ -738,7 +760,6 @@ def admin():
         
         # Add ebook-specific fields
         if category == 'ebook':
-            data["author"] = request.form.get('author', '').strip()
             data["preview_text"] = request.form.get('preview_text', '')[:1000]  # Limit to 1000 chars
             data["file_path"] = file_path
             data["file_type"] = file_type
@@ -752,46 +773,11 @@ def admin():
         return redirect(url_for('admin', tab='products'))
 
     # Update order status
-    if request.method == 'POST' and request.form.get('order_id') and request.form.get('new_status'):
-        order_id = request.form['order_id']
-        new_status = request.form['new_status']
-        if new_status not in {"paid", "delivered"}:
-            return "Invalid status", 400
-
-        update_doc = {"status": new_status}
-        if new_status == "paid":
-            update_doc["payment_status"] = "completed"
-
-        db.orders.update_one({"_id": ObjectId(order_id)}, {"$set": update_doc})
-
-        # If this order includes ebooks, send download links when marked paid (useful for M-Pesa)
-        if new_status == "paid":
-            try:
-                order = db.orders.find_one({"_id": ObjectId(order_id)})
-                if order and order.get("email"):
-                    ebooks_in_order = [
-                        item for item in order.get("items", [])
-                        if item.get("category") == "ebook"
-                    ]
-                    if ebooks_in_order:
-                        customer_msg = Message(
-                            subject="Feminine Flame - Your Ebooks Are Ready!",
-                            recipients=[order["email"]],
-                        )
-                        customer_msg.html = f"""
-                        <div style="font-family: Arial, sans-serif; max-width: 600px;">
-                            <h2 style="color: #c25e7d;">Payment Confirmed!</h2>
-                            <p>Your ebooks are now unlocked. Use the links below:</p>
-                            <ul>
-                                {"".join([f'<li>{item["name"]} - <a href="{url_for("ebook_detail", ebook_id=item["id"], _external=True)}">Open</a></li>' for item in ebooks_in_order])}
-                            </ul>
-                            <p>Open an ebook page and click <strong>Download Ebook</strong>.</p>
-                        </div>
-                        """
-                        mail.send(customer_msg)
-            except Exception as e:
-                print(f"📧 Ebook unlock email failed: {str(e)}")
-
+    if request.method == 'POST' and request.form.get('order_id'):
+        db.orders.update_one(
+            {"_id": ObjectId(request.form['order_id'])},
+            {"$set": {"status": "delivered"}}
+        )
         return redirect(url_for('admin', tab='orders'))
 
     tab = request.args.get('tab', 'dashboard')
@@ -808,7 +794,7 @@ def admin():
         page='dashboard',
         tab=tab,
         products=[serialize_doc(p) for p in products],
-        orders=[serialize_doc(o) for o in orders],
+        orders=orders,
         edit_product=edit_product
     )
 
@@ -836,7 +822,14 @@ def test_db():
         return "✅ Connected to MongoDB!"
     except Exception as e:
         return f"❌ Error: {str(e)}"
-    
+
+@app.route('/logout')
+def logout():
+    session.pop('user_email', None)
+    return redirect(url_for('home'))
+
+
+
 if __name__ == '__main__':
     print("🚀 Starting Feminine Flame Application...")
     print(f"📁 Ebooks folder: {EBOOK_FOLDER}")

@@ -3,13 +3,23 @@
   "builds": [
     {
       "src": "app.py",
-      "use": "@vercel/python"
+      "use": "@vercel/python",
+      "config": {
+        "maxDuration": 30,
+        "memory": 512
+      }
     },
     {
       "src": "static/**",
       "use": "@vercel/static"
     }
   ],
+  "functions": {
+    "app.py": {
+      "includeFiles": "Templates/**",
+      "excludeFiles": "protected_ebooks/**"
+    }
+  },
   "routes": [
     {
       "src": "/static/(.*)",
