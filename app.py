@@ -83,7 +83,7 @@ def get_db():
     if client is None:
         try:
             if MONGO_URI and "mongodb.net" in MONGO_URI:
-                client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+                client = MongoClient(MONGO_URI, tls=True, tlsAllowInvalidCertificates=True, serverSelectionTimeoutMS=5000)
             else:
                 client = MongoClient(MONGO_URI or "mongodb://localhost:27017", serverSelectionTimeoutMS=5000)
             
