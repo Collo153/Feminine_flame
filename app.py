@@ -12,6 +12,7 @@ import stripe
 import ssl
 import io
 from cryptography.fernet import Fernet # type: ignore
+from datetime import datetime
 
 # Load environment variables
 load_dotenv()
@@ -26,8 +27,8 @@ EBOOK_ENCRYPTION_KEY = os.getenv("EBOOK_ENCRYPTION_KEY")
 if not EBOOK_ENCRYPTION_KEY:
     # Generate a new key if not exists (store this in .env for production)
     EBOOK_ENCRYPTION_KEY = Fernet.generate_key().decode()
-    print(f"⚠️  NEW ENCRYPTION KEY GENERATED: {EBOOK_ENCRYPTION_KEY}")
-    print("⚠️  Add this to your .env file as EBOOK_ENCRYPTION_KEY")
+    print(f"[WARNING] NEW ENCRYPTION KEY GENERATED: {EBOOK_ENCRYPTION_KEY}")
+    print("[WARNING] Add this to your .env file as EBOOK_ENCRYPTION_KEY")
 
 cipher = Fernet(EBOOK_ENCRYPTION_KEY.encode())
 
@@ -93,10 +94,10 @@ def get_db():
             # Test connection
             client.admin.command('ping')
             db = client.Feminine_flame
-            print("✅ MongoDB connected successfully")
+            print("[OK] MongoDB connected successfully")
         except Exception as e:
-            print(f"⚠️  MongoDB connection warning: {str(e)}")
-            print("⚠️  Continuing with limited functionality...")
+            print(f"[WARNING] MongoDB connection warning: {str(e)}")
+            print("[WARNING] Continuing with limited functionality...")
     return db
 
 # === LAZY INITIALIZATION ===
@@ -111,7 +112,7 @@ def initialize_db():
     try:
         database = get_db()
         if database is None:
-            print("⚠️  Database not available, skipping initialization")
+            print("[WARNING] Database not available, skipping initialization")
             _initialized = True
             return
         
@@ -125,7 +126,7 @@ def initialize_db():
                 "is_active": True
             }
             database.users.insert_one(admin_user)
-            print("✅ Admin user created!")
+            print("[OK] Admin user created!")
         
         # === SEED SAMPLE DATA ===
         if database.products.count_documents({}) == 0:
@@ -164,11 +165,11 @@ def initialize_db():
                     "created_at": datetime.now(timezone.utc)
                 }
             ])
-            print("✅ Sample products added!")
+            print("[OK] Sample products added!")
         
         _initialized = True
     except Exception as e:
-        print(f"⚠️  Database initialization failed (continuing anyway): {str(e)}")
+        print(f"[WARNING] Database initialization failed (continuing anyway): {str(e)}")
         _initialized = True  # Mark as attempted to avoid retry loop
 
 # === BEFORE REQUEST: Ensure DB connection ===
@@ -185,7 +186,7 @@ def before_request():
 @app.errorhandler(500)
 def handle_500_error(e):
     """Handle unhandled exceptions to prevent FUNCTION_INVOCATION_FAILED"""
-    print(f"❌ Error: {str(e)}")
+    print(f"[ERROR] Error: {str(e)}")
     try:
         return render_template('Customer/error.html', 
                              message='An unexpected error occurred. Please try again.'), 500
@@ -526,7 +527,7 @@ def webhook():
                             """
                             mail.send(customer_msg)
                         except Exception as e:
-                            print(f"📧 Ebook download email failed: {str(e)}")
+                            print(f"[MAIL] Ebook download email failed: {str(e)}")
 
     return jsonify({"status": "success"})
 
@@ -566,14 +567,20 @@ def home():
         if db is None:
             return render_template('Customer/error.html', 
                                  message='Database connection unavailable. Please try again later.'), 503
+        
         all_products = list(db.products.find({"is_active": True}))
         perfumes = [serialize_doc(p) for p in all_products if p.get('category') == 'perfume']
         ebooks = [serialize_doc(p) for p in all_products if p.get('category') == 'ebook']
-        return render_template('Customer/index.html', perfumes=perfumes, ebooks=ebooks)
+        
+        return render_template('Customer/index.html', 
+                             perfumes=perfumes, 
+                             ebooks=ebooks,
+                             now=datetime.utcnow())
     except Exception as e:
-        print(f"❌ Homepage error: {str(e)}")
+        print(f"[ERROR] Homepage error: {str(e)}")
+        # Return a simple error page or fallback
         return render_template('Customer/error.html', 
-                             message='Error loading homepage. Please try again later.'), 500
+                             message='An error occurred loading the page. Please try again.'), 500
 
 # === CART MANAGEMENT ===
 @app.route('/cart')
@@ -679,7 +686,7 @@ def checkout():
             """
             mail.send(admin_msg)
         except Exception as e:
-            print(f"📧 Admin email failed: {str(e)}")
+            print(f"[MAIL] Admin email failed: {str(e)}")
 
         if email:
             try:
@@ -697,8 +704,7 @@ def checkout():
                 """
                 mail.send(customer_msg)
             except Exception as e:
-                print(f"📧 Customer email failed: {str(e)}")
-
+                print(f"[MAIL] Customer email failed: {str(e)}")
         session['order_id'] = order_id
 
         if country == "Kenya":
@@ -730,7 +736,7 @@ def checkout():
                     "category": product.get("category", "perfume")
                 }]
         except Exception as e:
-            print(f"⚠️ Invalid product_id: {product_id}")
+            print(f"[WARNING] Invalid product_id: {product_id}")
 
     cart = session.get('cart', [])
     total = sum(item['price'] * item['quantity'] for item in cart) if cart else 0
@@ -866,11 +872,6 @@ def login():
         return redirect(next_page or url_for('home'))
     return render_template('Customer/login.html')
 
-@app.route('/logout')
-def logout():
-    session.pop('user_email', None)
-    return redirect(url_for('home'))
-
 # === DEBUG ROUTE ===
 @app.route('/test-db')
 def test_db():
@@ -880,17 +881,11 @@ def test_db():
     except Exception as e:
         return f"❌ Error: {str(e)}"
 
-@app.route('/logout')
-def logout():
-    session.pop('user_email', None)
-    return redirect(url_for('home'))
-
-
 
 if __name__ == '__main__':
-    print("🚀 Starting Feminine Flame Application...")
-    print(f"📁 Ebooks folder: {EBOOK_FOLDER}")
-    print(f"📁 Uploads folder: {UPLOAD_FOLDER}")
-    print(f"🔗 MongoDB URI: {'SET' if MONGO_URI else 'NOT SET'}")
-    print(f"🔐 Stripe Key: {'SET' if os.getenv('STRIPE_SECRET_KEY') else 'NOT SET'}")
+    print("[STARTUP] Starting Feminine Flame Application...")
+    print(f"[STARTUP] Ebooks folder: {EBOOK_FOLDER}")
+    print(f"[STARTUP] Uploads folder: {UPLOAD_FOLDER}")
+    print(f"[STARTUP] MongoDB URI: {'SET' if MONGO_URI else 'NOT SET'}")
+    print(f"[STARTUP] Stripe Key: {'SET' if os.getenv('STRIPE_SECRET_KEY') else 'NOT SET'}")
     app.run(debug=True)
