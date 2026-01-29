@@ -5,3 +5,4 @@ python-dotenv==1.1.1
 Flask-Mail==0.10.0
 stripe==14.1.0
 cryptography==46.0.3
+gunicorn==23.0.0
