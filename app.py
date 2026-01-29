@@ -280,6 +280,45 @@ def ebook_detail(ebook_id):
         print(f"Error loading ebook detail: {str(e)}")
         return render_template('Customer/404.html'), 404
 
+
+# === EBOOK REVIEWS API ===
+@app.route('/api/ebook/<ebook_id>/reviews')
+def ebook_reviews_api(ebook_id):
+    try:
+        reviews_cursor = db.reviews.find({'ebook_id': ebook_id}).sort('created_at', -1)
+        reviews = [serialize_doc(r) for r in reviews_cursor]
+        # Ensure created_at is serializable
+        for r in reviews:
+            if 'created_at' in r and not isinstance(r['created_at'], str):
+                try:
+                    r['created_at'] = r['created_at'].isoformat()
+                except:
+                    r['created_at'] = str(r.get('created_at'))
+        return jsonify({'success': True, 'reviews': reviews})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/ebook/<ebook_id>/review', methods=['POST'])
+def ebook_submit_review(ebook_id):
+    try:
+        data = request.get_json() or {}
+        name = data.get('name', '').strip()[:100]
+        comment = data.get('comment', '').strip()[:2000]
+        if not comment:
+            return jsonify({'success': False, 'error': 'Review cannot be empty'}), 400
+
+        review = {
+            'ebook_id': ebook_id,
+            'name': name or 'Anonymous',
+            'comment': comment,
+            'created_at': datetime.utcnow()
+        }
+        db.reviews.insert_one(review)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 # === EBOOK PREVIEW API ===
 @app.route('/api/ebook/<ebook_id>/preview')
 def ebook_preview(ebook_id):

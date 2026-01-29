@@ -65,6 +65,23 @@
                     <h2>Description</h2>
                     <p>{{ ebook.description }}</p>
 
+                            <!-- Reviews -->
+                            <div class="reviews-section">
+                                <h3>Reviews</h3>
+                                <div id="reviews-list">
+                                    <p class="muted">Loading reviews…</p>
+                                </div>
+
+                                <div class="review-form">
+                                    <h4>Leave a review</h4>
+                                    <textarea id="review-text" rows="4" placeholder="Share your thoughts about this eBook"></textarea>
+                                    <input id="review-name" type="text" placeholder="Your name (optional)" />
+                                    <div style="margin-top:10px;">
+                                        <button id="submit-review" class="btn btn-primary">Submit Review</button>
+                                    </div>
+                                </div>
+                            </div>
+
                     {% if preview_text %}
                     <div class="preview-section">
                         <h3><i class="fas fa-eye"></i> Preview</h3>
@@ -125,6 +142,64 @@
                 alert('An error occurred. Please try again.');
             });
         }
+    </script>
+    <script>
+        // Fetch and render reviews
+        async function loadReviews() {
+            const reviewsList = document.getElementById('reviews-list');
+            try {
+                const res = await fetch(`/api/ebook/{{ ebook._id }}/reviews`);
+                const data = await res.json();
+                if (!data.success) {
+                    reviewsList.innerHTML = '<p class="muted">No reviews yet.</p>';
+                    return;
+                }
+                const reviews = data.reviews || [];
+                if (reviews.length === 0) {
+                    reviewsList.innerHTML = '<p class="muted">Be the first to review this eBook.</p>';
+                    return;
+                }
+                reviewsList.innerHTML = reviews.map(r => `
+                    <div class="review-item">
+                        <strong>${r.name || 'Anonymous'}</strong>
+                        <small class="review-date"> — ${new Date(r.created_at).toLocaleDateString()}</small>
+                        <p class="review-text">${r.comment}</p>
+                    </div>
+                `).join('');
+            } catch (err) {
+                reviewsList.innerHTML = '<p class="muted">Failed to load reviews.</p>';
+                console.error(err);
+            }
+        }
+
+        // Submit review
+        document.addEventListener('DOMContentLoaded', function() {
+            loadReviews();
+            document.getElementById('submit-review').addEventListener('click', async function() {
+                const comment = document.getElementById('review-text').value.trim();
+                const name = document.getElementById('review-name').value.trim();
+                if (!comment) return alert('Please write a review before submitting.');
+
+                try {
+                    const res = await fetch(`/ebook/{{ ebook._id }}/review`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ name, comment })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        document.getElementById('review-text').value = '';
+                        document.getElementById('review-name').value = '';
+                        loadReviews();
+                    } else {
+                        alert(data.error || 'Failed to submit review.');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert('An error occurred while submitting your review.');
+                }
+            });
+        });
     </script>
 </body>
 </html>

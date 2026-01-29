@@ -42,7 +42,7 @@
     <h2 class="section-title">✨ Signature Perfumes</h2>
     <div class="products-grid" id="perfumes-grid">
       {% for product in perfumes %}
-      <div class="product-card" data-product-id="{{ product._id|string }}" 
+      <div class="product-card {% if loop.first %}highlight{% endif %}" data-product-id="{{ product._id|string }}" 
            data-product-name="{{ product.name }}" 
            data-product-price="{{ product.price }}">
         <div class="product-img-wrapper">
@@ -57,7 +57,7 @@
         </div>
         <div class="product-info">
           <h3 class="product-title">{{ product.name }}</h3>
-          <p>{{ product.description[:80] }}...</p>
+          <p>{{ product.description[:120] }}...</p>
           <div class="product-price">KES {{ "%.2f"|format(product.price) }}</div>
           <div class="product-actions">
             <button class="btn-cart" data-action="add-to-cart">
@@ -95,21 +95,12 @@
         </div>
         <div class="product-info">
           <h3 class="product-title">{{ product.name }}</h3>
-          <p>{{ product.description[:80] }}...</p>
+          <p>{{ product.description[:110] }}...</p>
           <div class="product-price">KES {{ "%.2f"|format(product.price) }}</div>
           <div class="product-actions">
-            {% if product.image_url and product.image_url.endswith(('.pdf', '.epub', '.mobi')) %}
-              <a href="{{ url_for('static', filename='uploads/' + product.image_url) }}" 
-                 class="btn-buy" 
-                 download
-                 aria-label="Download {{ product.name }}">
-                <i class="fas fa-download"></i> Download eBook
-              </a>
-            {% else %}
-              <button class="btn-cart" data-action="add-to-cart">
-                Add to Cart
-              </button>
-            {% endif %}
+            <a href="{{ url_for('ebook_detail', ebook_id=product._id) }}" class="btn-buy">View Details</a>
+            <button class="btn-cart" data-action="add-to-cart">Add to Cart</button>
+            <a href="{{ url_for('checkout', product_id=product._id) }}" class="btn-buy">Buy Now</a>
           </div>
         </div>
       </div>
