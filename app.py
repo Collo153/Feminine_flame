@@ -9,7 +9,6 @@ import uuid
 from werkzeug.utils import secure_filename
 from flask_mail import Mail, Message
 import stripe
-import ssl
 import io
 from cryptography.fernet import Fernet # type: ignore
 from datetime import datetime
@@ -84,10 +83,7 @@ def get_db():
     if client is None:
         try:
             if MONGO_URI and "mongodb.net" in MONGO_URI:
-                ssl_context = ssl.create_default_context()
-                ssl_context.check_hostname = False
-                ssl_context.verify_mode = ssl.CERT_NONE
-                client = MongoClient(MONGO_URI, tls=True, ssl_context=ssl_context, serverSelectionTimeoutMS=5000)
+                client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
             else:
                 client = MongoClient(MONGO_URI or "mongodb://localhost:27017", serverSelectionTimeoutMS=5000)
             

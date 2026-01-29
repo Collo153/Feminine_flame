@@ -3,18 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="description" content="Luxury handcrafted perfumes and empowering eBooks for the modern woman. Shop Feminine Flame today.">
   <title>Feminine Flame | Luxury Perfumes & Books</title>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
 
   <!-- HEADER -->
   <header>
     <div class="logo">
-      <img src="{{ url_for('static', filename='Images/Logo b.png') }}" alt="Feminine Flame">
+      <img src="{{ url_for('static', filename='images/Logo b.png') }}" alt="Feminine Flame Logo">
     </div>
     <nav>
       <ul>
@@ -23,7 +23,7 @@
         <li><a href="#ebooks">eBooks</a></li>
         <li><a href="#about">About</a></li>
         <li><a href="#footer-contact">Contact</a></li>
-        <li><a href="{{ url_for('cart') }}">🛒 My Cart</a></li>
+        <li><a href="{{ url_for('cart') }}">My Cart</a></li>
       </ul>
     </nav>
   </header>
@@ -43,31 +43,23 @@
     <div class="products-grid">
       {% for product in perfumes %}
       <div class="product-card">
-        {% if product.image_url %}
-          {% if product.image_url.startswith('gridfs:') %}
-            <img src="{{ url_for('media', file_id=product.image_url.split(':', 1)[1]) }}"
-                 class="product-img"
-                 alt="{{ product.name }}">
-          {% else %}
+        <div class="product-img-wrapper">
+          {% if product.image_url %}
             <img src="{{ url_for('static', filename='uploads/' + product.image_url) }}" 
-                 class="product-img" 
-                 alt="{{ product.name }}">
+                 alt="{{ product.name }}" 
+                 loading="lazy"
+                 onerror="this.parentElement.innerHTML='<div class=\'product-img-placeholder\'>Image Unavailable</div>'">
+          {% else %}
+            <div class="product-img-placeholder">No Image</div>
           {% endif %}
-        {% else %}
-          <div class="product-img-placeholder">No Image</div>
-        {% endif %}
+        </div>
         <div class="product-info">
           <h3 class="product-title">{{ product.name }}</h3>
           <p>{{ product.description[:80] }}...</p>
           <div class="product-price">KES {{ "%.2f"|format(product.price) }}</div>
           <div class="product-actions">
-            <button
-              class="btn-cart add-to-cart-btn"
-              data-product-id="{{ product._id }}"
-              data-product-name="{{ product.name }}"
-              data-product-price="{{ product.price }}"
-              type="button"
-            >
+            <button class="btn-cart" 
+                    onclick="addToCart({{ product._id|string|tojson|safe }}, {{ product.name|tojson|safe }}, {{ product.price|tojson|safe }})">
               Add to Cart
             </button>
             <a href="{{ url_for('checkout', product_id=product._id) }}" class="btn-buy">Buy Now</a>
@@ -75,7 +67,7 @@
         </div>
       </div>
       {% else %}
-        <p style="text-align:center;grid-column:1/-1;">No perfumes available yet.</p>
+      <p class="no-products">No perfumes available yet. Check back soon!</p>
       {% endfor %}
     </div>
   </section>
@@ -86,90 +78,56 @@
     <div class="products-grid">
       {% for product in ebooks %}
       <div class="product-card">
-        {% if product.image_url %}
-          {% if product.image_url.startswith('gridfs:') %}
-            <img src="{{ url_for('media', file_id=product.image_url.split(':', 1)[1]) }}"
-                 class="product-img"
-                 alt="{{ product.name }}">
-          {% else %}
+        <div class="product-img-wrapper">
+          {% if product.image_url and not product.image_url.endswith(('.pdf', '.epub', '.mobi')) %}
             <img src="{{ url_for('static', filename='uploads/' + product.image_url) }}" 
-                 class="product-img" 
-                 alt="{{ product.name }}">
+                 alt="{{ product.name }}" 
+                 loading="lazy"
+                 onerror="this.parentElement.innerHTML='<div class=\'product-img-placeholder\'>Cover Unavailable</div>'">
+          {% elif product.image_url and product.image_url.endswith(('.pdf', '.epub', '.mobi')) %}
+            <div class="product-img-placeholder">eBook File</div>
+          {% else %}
+            <div class="product-img-placeholder">No Cover</div>
           {% endif %}
-        {% else %}
-          <div class="product-img-placeholder">
-            <i class="fas fa-book-open fa-3x"></i>
-            <p style="margin-top: 10px; font-size: 16px;">{{ product.name }}</p>
-          </div>
-        {% endif %}
+        </div>
         <div class="product-info">
           <h3 class="product-title">{{ product.name }}</h3>
           <p>{{ product.description[:80] }}...</p>
           <div class="product-price">KES {{ "%.2f"|format(product.price) }}</div>
           <div class="product-actions">
-            <a href="{{ url_for('ebook_detail', ebook_id=product._id) }}" class="btn-buy">
-              <i class="fas fa-eye"></i> View Details
-            </a>
+            {% if product.image_url and product.image_url.endswith(('.pdf', '.epub', '.mobi')) %}
+              <a href="{{ url_for('static', filename='uploads/' + product.image_url) }}" 
+                 class="btn-buy" 
+                 download
+                 aria-label="Download {{ product.name }}">
+                <i class="fas fa-download"></i> Download eBook
+              </a>
+            {% else %}
+              <button class="btn-cart" 
+                      onclick="addToCart({{ product._id|string|tojson|safe }}, {{ product.name|tojson|safe }}, {{ product.price|tojson|safe }})">
+                Add to Cart
+              </button>
+            {% endif %}
           </div>
         </div>
       </div>
       {% else %}
-        <p style="text-align:center;grid-column:1/-1;">No ebooks available yet.</p>
+      <p class="no-products">No eBooks available yet. Check back soon!</p>
       {% endfor %}
     </div>
   </section>
 
   <!-- ABOUT SECTION -->
-  <section id="about" class="about-section">
-    <div class="about-inner">
-      <div class="about-intro">
-        <h2 class="section-title">About Feminine Flame</h2>
-        <p class="about-tagline">
-          Feminine Flame is a sanctuary for women who see fragrance and words as part of their self-care ritual.
-        </p>
-      </div>
-
-      <div class="about-grid">
-        <div class="about-card">
-          <h3>Our Story</h3>
-          <p>
-            Born from a love of scent and storytelling, Feminine Flame was created to celebrate the softness and strength of the modern woman.
-            Each perfume is blended in small batches, and every ebook is curated to speak to the heart, the mind, and the soul.
-          </p>
-          <p>
-            From Nairobi to the world, we exist to remind you that your presence should be felt long after you leave a room—through your scent,
-            your words, and the legacy you are writing.
-          </p>
-        </div>
-
-        <div class="about-card">
-          <h3>What We Offer</h3>
-          <ul>
-            <li><strong>Signature Perfumes:</strong> Long-lasting, skin-loving scents crafted to match your mood and moments.</li>
-            <li><strong>Soulful eBooks:</strong> Stories and reflections that hold your hand through love, healing, and becoming.</li>
-            <li><strong>Intentional Gifting:</strong> Thoughtfully packaged pieces that make meaningful, memorable gifts.</li>
-          </ul>
-        </div>
-
-        <div class="about-card">
-          <h3>Our Promise</h3>
-          <p>
-            We create with intention, test with care, and listen closely to the women who wear and read our work.
-            Every bottle and every page is an invitation to pause, breathe, and reconnect with the woman you are becoming.
-          </p>
-          <p class="about-highlight">
-            Feminine Flame is more than a brand—it is a quiet revolution of women choosing themselves first.
-          </p>
-        </div>
-      </div>
-    </div>
+  <section id="about">
+    <h2 class="section-title">About Feminine Flame</h2>
+    <p class="about-text">We craft luxury perfumes and publish empowering stories for the bold, beautiful, and brave.</p>
   </section>
 
   <!-- FOOTER -->
   <footer class="site-footer" id="footer-contact">
     <div class="footer-container">
       <div class="footer-col">
-        <img src="{{ url_for('static', filename='Images/Logo.jpg') }}" alt="Feminine Flame" class="footer-logo">
+        <img src="{{ url_for('static', filename='images/Logo.JPG') }}" alt="Feminine Flame Logo" class="footer-logo">
         <p class="footer-desc">
           Curating luxury perfumes and soulful stories for the modern woman who dares to leave a trail.
         </p>
@@ -186,18 +144,18 @@
       <div class="footer-col">
         <h3>Contact Us</h3>
         <ul class="contact-info">
-          <li>📧 feminineflame19@gmail.com</li>
-          <li>📱 +447 301 623 591</li>
-          <li>📍 Nairobi, Kenya</li>
+          <li><i class="fas fa-envelope"></i> feminineflame19@gmail.com</li>
+          <li><i class="fas fa-phone"></i> +447 301 623 591</li>
+          <li><i class="fas fa-map-marker-alt"></i> Nairobi, Kenya</li>
         </ul>
       </div>
       <div class="footer-col">
         <h3>Follow Us</h3>
         <div class="social-links">
-          <a href="https://instagram.com/your_instagram" target="_blank" class="social-link" aria-label="Instagram">
+          <a href="https://instagram.com/feminineflame" target="_blank" class="social-link" aria-label="Instagram">
             <i class="fab fa-instagram"></i>
           </a>
-          <a href="https://facebook.com/your_facebook" target="_blank" class="social-link" aria-label="Facebook">
+          <a href="https://facebook.com/feminineflame" target="_blank" class="social-link" aria-label="Facebook">
             <i class="fab fa-facebook-f"></i>
           </a>
           <a href="mailto:feminineflame19@gmail.com" class="social-link" aria-label="Email">
@@ -211,60 +169,31 @@
       </div>
     </div>
     <div class="footer-bottom">
-      <p>&copy; 2025 Feminine Flame. All rights reserved. Crafted with passion.</p>
+      <p>&copy; {{ now.year }} Feminine Flame. All rights reserved. Crafted with passion in Kenya.</p>
     </div>
   </footer>
 
-  <script>
-    function addToCart(productId, productName, price) {
-        // Get current cart from session or initialize empty
-        let cart = JSON.parse(sessionStorage.getItem('cart') || '[]');
-        
-        // Check if product already in cart
-        const existingItem = cart.find(item => item.id === productId);
-        
-        if (existingItem) {
-            existingItem.quantity += 1;
-        } else {
-            cart.push({
-                id: productId,
-                name: productName,
-                price: price,
-                quantity: 1
-            });
-        }
-        
-        // Save to session storage
-        sessionStorage.setItem('cart', JSON.stringify(cart));
-        
-        // Sync with server
-        fetch('/sync-cart', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ cart: cart })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert(`${productName} added to cart!`);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-        });
-    }
+  <!-- CART NOTIFICATION -->
+  <div id="cart-notification" class="cart-notification">
+    <i class="fas fa-check-circle"></i> Added to cart!
+  </div>
 
-    // Bind buttons (avoids inline JS with Jinja variables)
-    document.querySelectorAll('.add-to-cart-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const productId = btn.dataset.productId;
-        const productName = btn.dataset.productName;
-        const price = Number(btn.dataset.productPrice || 0);
-        addToCart(productId, productName, price);
-      });
+  <script>
+    // Safe initialization for cart functionality
+    window.addEventListener('DOMContentLoaded', () => {
+      // Initialize cart if not exists
+      if (!localStorage.getItem('cart')) {
+        localStorage.setItem('cart', JSON.stringify([]));
+      }
+      
+      // Handle cart notifications
+      window.showCartNotification = function() {
+        const notif = document.getElementById('cart-notification');
+        notif.classList.add('show');
+        setTimeout(() => notif.classList.remove('show'), 3000);
+      };
     });
   </script>
+  <script src="{{ url_for('static', filename='js/cart.js') }}"></script>
 </body>
 </html>
