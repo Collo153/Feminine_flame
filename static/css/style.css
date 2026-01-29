@@ -33,8 +33,17 @@ header {
   height: 80px; /* fixed height for consistent layout */
 }
 
+.logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .logo img {
   height: 60px;
+  width: auto;
+  max-width: 200px;
+  object-fit: contain;
   filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
 }
 
@@ -408,21 +417,80 @@ nav a:hover {
 
 /* Responsive */
 @media (max-width: 768px) {
+  /* Header Logo - Mobile */
+  .logo img {
+    height: 45px;
+    max-width: 100%;
+    object-fit: contain;
+  }
+
+  header {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 0.75rem;
+    gap: 1rem;
+  }
+
+  nav ul {
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    order: 3;
+  }
+
+  nav a {
+    font-size: 0.9rem;
+  }
+
+  /* Footer Logo - Mobile */
+  .footer-logo {
+    height: 50px;
+    max-width: 100%;
+    object-fit: contain;
+  }
+
   .site-footer {
     padding: 2rem 0 1rem;
   }
+
   .footer-container {
     gap: 2rem;
     padding: 0 1.5rem;
   }
-  header {
-    flex-wrap: wrap;
-    height: auto;
-    padding: 1rem;
+
+  .hero h1 {
+    font-size: 2rem;
   }
-  nav ul {
-    gap: 1rem;
-    flex-wrap: wrap;
-    justify-content: center;
+
+  .hero p {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Extra small screens */
+  .logo img {
+    height: 40px;
+  }
+
+  .footer-logo {
+    height: 40px;
+  }
+
+  header {
+    padding: 0.5rem;
+  }
+
+  nav a {
+    font-size: 0.8rem;
+  }
+
+  .hero h1 {
+    font-size: 1.5rem;
+  }
+
+  .hero p {
+    font-size: 0.9rem;
   }
 }

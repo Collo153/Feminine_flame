@@ -14,7 +14,7 @@
   <!-- HEADER -->
   <header>
     <div class="logo">
-      <img src="{{ url_for('static', filename='images/Logo b.png') }}" alt="Feminine Flame Logo">
+      <img src="{{ url_for('static', filename='Images/Logo b.png') }}" alt="Feminine Flame Logo">
     </div>
     <nav>
       <ul>
@@ -40,9 +40,11 @@
   <!-- PERFUMES SECTION -->
   <section id="perfumes">
     <h2 class="section-title">✨ Signature Perfumes</h2>
-    <div class="products-grid">
+    <div class="products-grid" id="perfumes-grid">
       {% for product in perfumes %}
-      <div class="product-card">
+      <div class="product-card" data-product-id="{{ product._id|string }}" 
+           data-product-name="{{ product.name }}" 
+           data-product-price="{{ product.price }}">
         <div class="product-img-wrapper">
           {% if product.image_url %}
             <img src="{{ url_for('static', filename='uploads/' + product.image_url) }}" 
@@ -58,8 +60,7 @@
           <p>{{ product.description[:80] }}...</p>
           <div class="product-price">KES {{ "%.2f"|format(product.price) }}</div>
           <div class="product-actions">
-            <button class="btn-cart" 
-                    onclick="addToCart({{ product._id|string|tojson|safe }}, {{ product.name|tojson|safe }}, {{ product.price|tojson|safe }})">
+            <button class="btn-cart" data-action="add-to-cart">
               Add to Cart
             </button>
             <a href="{{ url_for('checkout', product_id=product._id) }}" class="btn-buy">Buy Now</a>
@@ -75,9 +76,11 @@
   <!-- EBOOKS SECTION -->
   <section id="ebooks">
     <h2 class="section-title">📚 Soulful eBooks</h2>
-    <div class="products-grid">
+    <div class="products-grid" id="ebooks-grid">
       {% for product in ebooks %}
-      <div class="product-card">
+      <div class="product-card" data-product-id="{{ product._id|string }}" 
+           data-product-name="{{ product.name }}" 
+           data-product-price="{{ product.price }}">
         <div class="product-img-wrapper">
           {% if product.image_url and not product.image_url.endswith(('.pdf', '.epub', '.mobi')) %}
             <img src="{{ url_for('static', filename='uploads/' + product.image_url) }}" 
@@ -103,8 +106,7 @@
                 <i class="fas fa-download"></i> Download eBook
               </a>
             {% else %}
-              <button class="btn-cart" 
-                      onclick="addToCart({{ product._id|string|tojson|safe }}, {{ product.name|tojson|safe }}, {{ product.price|tojson|safe }})">
+              <button class="btn-cart" data-action="add-to-cart">
                 Add to Cart
               </button>
             {% endif %}
@@ -127,7 +129,7 @@
   <footer class="site-footer" id="footer-contact">
     <div class="footer-container">
       <div class="footer-col">
-        <img src="{{ url_for('static', filename='images/Logo.JPG') }}" alt="Feminine Flame Logo" class="footer-logo">
+        <img src="{{ url_for('static', filename='Images/Logo.jpg') }}" alt="Feminine Flame Logo" class="footer-logo">
         <p class="footer-desc">
           Curating luxury perfumes and soulful stories for the modern woman who dares to leave a trail.
         </p>
@@ -180,20 +182,71 @@
 
   <script>
     // Safe initialization for cart functionality
-    window.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', function() {
       // Initialize cart if not exists
       if (!localStorage.getItem('cart')) {
         localStorage.setItem('cart', JSON.stringify([]));
       }
-      
+
       // Handle cart notifications
       window.showCartNotification = function() {
         const notif = document.getElementById('cart-notification');
         notif.classList.add('show');
         setTimeout(() => notif.classList.remove('show'), 3000);
       };
+
+      // Event delegation for Add to Cart buttons
+      document.addEventListener('click', function(e) {
+        if (e.target.closest('[data-action="add-to-cart"]')) {
+          const button = e.target.closest('[data-action="add-to-cart"]');
+          const productCard = button.closest('.product-card');
+          
+          if (productCard) {
+            const productId = productCard.dataset.productId;
+            const productName = productCard.dataset.productName;
+            const productPrice = parseFloat(productCard.dataset.productPrice);
+            
+            // Add to cart logic
+            addToCart(productId, productName, productPrice);
+          }
+        }
+      });
     });
+
+    // Add to cart function
+    function addToCart(productId, productName, productPrice) {
+      try {
+        // Get current cart
+        let cart = JSON.parse(localStorage.getItem('cart')) || [];
+        
+        // Check if product already exists
+        const existingItem = cart.find(item => item.id === productId);
+        
+        if (existingItem) {
+          existingItem.quantity += 1;
+        } else {
+          // Add new item
+          cart.push({
+            id: productId,
+            name: productName,
+            price: productPrice,
+            quantity: 1
+          });
+        }
+        
+        // Save updated cart
+        localStorage.setItem('cart', JSON.stringify(cart));
+        
+        // Show notification
+        if (typeof showCartNotification === 'function') {
+          showCartNotification();
+        }
+        
+        console.log('Added to cart:', productName);
+      } catch (error) {
+        console.error('Error adding to cart:', error);
+      }
+    }
   </script>
-  <script src="{{ url_for('static', filename='js/cart.js') }}"></script>
 </body>
 </html>
