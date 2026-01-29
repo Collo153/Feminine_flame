@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, redirect, url_for, session, send_file
+from flask import Flask, request, jsonify, render_template, redirect, url_for, session, send_file, send_from_directory
 from pymongo import MongoClient
 import os
 from dotenv import load_dotenv
@@ -188,6 +188,16 @@ def handle_500_error(e):
                              message='An unexpected error occurred. Please try again.'), 500
     except:
         return "Internal Server Error", 500
+
+
+# Fallback route for case-insensitive image requests (serve from static/Images)
+@app.route('/static/images/<path:filename>')
+def static_images_fallback(filename):
+    """Serve images requested with lowercase 'images' path by mapping
+    them to the actual `static/Images/` directory. This handles clients
+    or bots requesting the old/lowercase path on case-sensitive hosts."""
+    images_dir = os.path.join(app.root_path, 'static', 'Images')
+    return send_from_directory(images_dir, filename)
 
 # === EBOOK UPLOAD ROUTE ===
 @app.route('/admin/upload-ebook', methods=['POST'])
